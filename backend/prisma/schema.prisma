@@ -98,6 +98,8 @@ model Patient {
   files           MedicalFile[]
   timeline        ClinicalTimeline[]
   payments        Payment[]
+  criticalAlerts  CriticalAlert[]
+  abhaRecord      AbhaRecord? 
 
   @@map("patients")
 }
@@ -122,6 +124,7 @@ model Doctor {
   slots         DoctorSlot[]
   appointments  Appointment[]
   messages      Message[]
+  criticalAlerts  CriticalAlert[]
 
   @@map("doctors")
 }
