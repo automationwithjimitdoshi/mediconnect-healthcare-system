@@ -1,0 +1,356 @@
+// MediConnect AI — Prisma Database Schema
+// Run: npx prisma migrate dev --name init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  PATIENT
+  DOCTOR
+  ADMIN
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  CONFIRMED
+  RESCHEDULED
+  CANCELLED
+  COMPLETED
+  NO_SHOW
+}
+
+enum AppointmentType {
+  IN_PERSON
+  VIDEO_CALL
+}
+
+enum UrgencyLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum MessageType {
+  TEXT
+  FILE
+  SYSTEM
+  AI_SUMMARY
+  CLINICAL_NOTE
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  passwordHash  String
+  role          Role
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  patient       Patient?
+  doctor        Doctor?
+
+  @@map("users")
+}
+
+model Patient {
+  id              String    @id @default(uuid())
+  userId          String    @unique
+  user            User      @relation(fields: [userId], references: [id])
+  firstName       String
+  lastName        String
+  dateOfBirth     DateTime
+  gender          String
+  phone           String
+  bloodType       String?
+  address         String?
+  emergencyName   String?
+  emergencyPhone  String?
+  insuranceProvider  String?
+  policyNumber    String?
+  coverageType    String?
+  policyExpiry    DateTime?
+  photoUrl        String?
+  abhaNumber      String?   // Ayushman Bharat Health Account ID (14 digits)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  conditions      PatientCondition[]
+  allergies       PatientAllergy[]
+  medications     Medication[]
+  vitals          VitalRecord[]
+  appointments    Appointment[]
+  messages        Message[]
+  files           MedicalFile[]
+  timeline        ClinicalTimeline[]
+  payments        Payment[]
+
+  @@map("patients")
+}
+
+model Doctor {
+  id            String   @id @default(uuid())
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id])
+  firstName     String
+  lastName      String
+  specialty     String
+  qualification String
+  hospital      String
+  phone         String
+  photoUrl      String?
+  consultFee    Int      @default(500) // in paise (₹5.00 default)
+  bio           String?
+  isAvailable   Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  slots         DoctorSlot[]
+  appointments  Appointment[]
+  messages      Message[]
+
+  @@map("doctors")
+}
+
+model DoctorSlot {
+  id        String   @id @default(uuid())
+  doctorId  String
+  doctor    Doctor   @relation(fields: [doctorId], references: [id])
+  dayOfWeek Int      // 0=Sun, 1=Mon ... 6=Sat
+  startTime String   // "09:00"
+  endTime   String   // "09:30"
+  isActive  Boolean  @default(true)
+
+  @@map("doctor_slots")
+}
+
+model PatientCondition {
+  id          String  @id @default(uuid())
+  patientId   String
+  patient     Patient @relation(fields: [patientId], references: [id])
+  condition   String
+  diagnosedAt DateTime?
+  isActive    Boolean @default(true)
+
+  @@map("patient_conditions")
+}
+
+model PatientAllergy {
+  id        String  @id @default(uuid())
+  patientId String
+  patient   Patient @relation(fields: [patientId], references: [id])
+  allergen  String
+  severity  String?
+
+  @@map("patient_allergies")
+}
+
+model Medication {
+  id          String   @id @default(uuid())
+  patientId   String
+  patient     Patient  @relation(fields: [patientId], references: [id])
+  name        String
+  dose        String
+  frequency   String
+  refillDate  DateTime?
+  isActive    Boolean  @default(true)
+  prescribedAt DateTime @default(now())
+
+  @@map("medications")
+}
+
+model VitalRecord {
+  id          String   @id @default(uuid())
+  patientId   String
+  patient     Patient  @relation(fields: [patientId], references: [id])
+  bp          String?
+  pulse       Int?
+  temperature Float?
+  spo2        Float?
+  bmi         Float?
+  hba1c       Float?
+  fbs         Float?
+  recordedAt  DateTime @default(now())
+
+  @@map("vital_records")
+}
+
+model Appointment {
+  id          String            @id @default(uuid())
+  patientId   String
+  patient     Patient           @relation(fields: [patientId], references: [id])
+  doctorId    String
+  doctor      Doctor            @relation(fields: [doctorId], references: [id])
+  scheduledAt DateTime
+  duration    Int               @default(30) // minutes
+  type        AppointmentType   @default(IN_PERSON)
+  status      AppointmentStatus @default(SCHEDULED)
+  room        String?
+  reason      String?
+  notes       String?
+  urgency     UrgencyLevel      @default(LOW)
+  aiSummary   String?
+  rescheduledFrom DateTime?
+  cancelReason    String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  payment     Payment?
+  chatRoom    ChatRoom?
+
+  @@map("appointments")
+}
+
+model Payment {
+  id                String        @id @default(uuid())
+  appointmentId     String        @unique
+  appointment       Appointment   @relation(fields: [appointmentId], references: [id])
+  patientId         String
+  patient           Patient       @relation(fields: [patientId], references: [id])
+  amount            Int           // paise
+  currency          String        @default("INR")
+  status            PaymentStatus @default(PENDING)
+  razorpayOrderId   String?       @unique
+  razorpayPaymentId String?
+  razorpaySignature String?
+  refundId          String?
+  paidAt            DateTime?
+  createdAt         DateTime      @default(now())
+
+  @@map("payments")
+}
+
+model ChatRoom {
+  id            String      @id @default(uuid())
+  appointmentId String      @unique
+  appointment   Appointment @relation(fields: [appointmentId], references: [id])
+  createdAt     DateTime    @default(now())
+
+  messages      Message[]
+
+  @@map("chat_rooms")
+}
+
+model Message {
+  id          String      @id @default(uuid())
+  chatRoomId  String
+  chatRoom    ChatRoom    @relation(fields: [chatRoomId], references: [id])
+  senderId    String      // user.id
+  senderRole  Role
+  patientId   String?
+  patient     Patient?    @relation(fields: [patientId], references: [id])
+  doctorId    String?
+  doctor      Doctor?     @relation(fields: [doctorId], references: [id])
+  type        MessageType @default(TEXT)
+  content     String?
+  fileId      String?
+  file        MedicalFile? @relation(fields: [fileId], references: [id])
+  isUrgent    Boolean     @default(false)
+  aiExtract   String?
+  isRead      Boolean     @default(false)
+  createdAt   DateTime    @default(now())
+
+  @@map("messages")
+}
+
+model MedicalFile {
+  id            String   @id @default(uuid())
+  patientId     String
+  patient       Patient  @relation(fields: [patientId], references: [id])
+  uploadedBy    String   // user.id
+  fileName      String
+  fileType      String   // pdf, jpg, dicom, etc.
+  mimeType      String
+  fileSize      Int      // bytes
+  storageUrl    String
+  storageKey    String
+  aiExtract     String?
+  aiSummary     String?
+  category      String?  // blood_report, ecg, xray, prescription
+  reportDate    DateTime?
+  isProcessed   Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  aiAnalysis   String?
+  urgencyLevel String  @default("LOW")
+  patientAnalysis   Json?      // stores the patient-friendly analysis result
+  patientAnalyzedAt DateTime?  // when the patient last analyzed this file
+  reviewChecklist    Json?
+  reviewedAt         DateTime?
+  reviewedByDoctorId String?
+
+
+  messages      Message[]
+
+  @@map("medical_files")
+}
+
+model ClinicalTimeline {
+  id          String   @id @default(uuid())
+  patientId   String
+  patient     Patient  @relation(fields: [patientId], references: [id])
+  title       String
+  description String
+  category    String   // visit, report, prescription, alert
+  occurredAt  DateTime @default(now())
+  metadata    Json?
+
+  @@map("clinical_timeline")
+}
+
+model AISummary {
+  id          String   @id @default(uuid())
+  patientId   String
+  generatedBy String   // model name
+  summary     String
+  urgency     UrgencyLevel
+  tags        String[] // array of tags
+  context     String?
+  createdAt   DateTime @default(now())
+
+  @@map("ai_summaries")
+}
+
+model CriticalAlert {
+  id             String    @id @default(cuid())
+  type           String    // LAB_CRITICAL | MESSAGE_RED_FLAG
+  severity       String    // CRITICAL | HIGH
+  patientId      String
+  patient        Patient   @relation(fields: [patientId], references: [id])
+  doctorId       String?
+  doctor         Doctor?   @relation(fields: [doctorId], references: [id])
+  fileId         String?
+  parameter      String
+  value          String
+  message        String
+  acknowledged   Boolean   @default(false)
+  acknowledgedAt DateTime?
+  acknowledgedBy String?
+  triggeredAt    DateTime  @default(now())
+  createdAt      DateTime  @default(now())
+}
+
+model AbhaRecord {
+  id          String   @id @default(cuid())
+  patientId   String   @unique
+  patient     Patient  @relation(fields: [patientId], references: [id])
+  abhaId      String
+  summary     String?  @db.Text
+  records     Json
+  isMock      Boolean  @default(false)
+  fetchedAt   DateTime @default(now())
+  createdAt   DateTime @default(now())
+}
