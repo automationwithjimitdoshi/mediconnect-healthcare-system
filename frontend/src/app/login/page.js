@@ -6,7 +6,7 @@ export const fetchCache = 'force-no-store';
  * Landing login page — shows role selector (Patient / Doctor).
  * Also handles #forgot hash for forgot-password flow (backward compat).
  */
-import { useState, useEffect } from 'react';
+import { useState, Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 const API  = 'http://localhost:5000/api';
@@ -15,7 +15,7 @@ const TEAL = '#00796b', TEAL_P = '#e0f5f0';
 const GREEN = '#1b5e20', GREEN_P = '#e8f5e9', RED = '#c62828', RED_P = '#fdecea';
 const BORDER = '#e2e8f0', MUTED = '#8896a7', SURFACE = '#f7f9fc';
 
-export default function LoginLandingPage() {
+function LoginLandingPageInner() {
   const router  = useRouter();
   const params  = useSearchParams();
   const [showForgot, setShowForgot] = useState(false);
@@ -176,5 +176,13 @@ export default function LoginLandingPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginLandingPage() {
+  return (
+    <Suspense fallback={<div style={{display:'flex',height:'100vh',alignItems:'center',justifyContent:'center',fontFamily:'DM Sans, sans-serif',fontSize:14,color:'#8896a7'}}>Loading…</div>}>
+      <LoginLandingPageInner/>
+    </Suspense>
   );
 }

@@ -5,7 +5,7 @@ export const fetchCache = 'force-no-store';
  * src/app/patient/login/page.js
  * Patient-specific login page.
  */
-import { useState, useEffect } from 'react';
+import { useState, Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 const API  = 'http://localhost:5000/api';
@@ -14,7 +14,7 @@ const GREEN = '#1b5e20', GREEN_P = '#e8f5e9', RED = '#c62828', RED_P = '#fdecea'
 const TEAL = '#00796b', TEAL_P = '#e0f5f0';
 const BORDER = '#e2e8f0', MUTED = '#8896a7';
 
-export default function PatientLoginPage() {
+function PatientLoginPageInner() {
   const router     = useRouter();
   const params     = useSearchParams();
   const [email,    setEmail] = useState('');
@@ -153,5 +153,13 @@ export default function PatientLoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function PatientLoginPage() {
+  return (
+    <Suspense fallback={<div style={{display:'flex',height:'100vh',alignItems:'center',justifyContent:'center',fontFamily:'DM Sans, sans-serif',fontSize:14,color:'#8896a7'}}>Loading…</div>}>
+      <PatientLoginPageInner/>
+    </Suspense>
   );
 }

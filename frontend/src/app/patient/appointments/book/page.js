@@ -705,3 +705,11 @@ export default function BookAppointmentPage() {
     </div>
   );
 }
+
+export default function DoctorReportReview() {
+  return (
+    <Suspense fallback={<div style={{display:'flex',height:'100vh',alignItems:'center',justifyContent:'center',fontFamily:'DM Sans, sans-serif',fontSize:14,color:'#8896a7'}}>Loading…</div>}>
+      <DoctorReportReviewInner/>
+    </Suspense>
+  );
+}

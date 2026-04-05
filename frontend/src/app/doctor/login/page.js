@@ -8,7 +8,7 @@ export const fetchCache = 'force-no-store';
  *   - Their generated @mediconnect.ai email
  *   - Their original registration email (backend resolves via bio field)
  */
-import { useState, useEffect } from 'react';
+import { useState, Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 const API  = 'http://localhost:5000/api';
@@ -16,7 +16,7 @@ const NAVY = '#0c1a2e', BLUE = '#1565c0', BLUE_P = '#e3f0ff';
 const GREEN = '#1b5e20', GREEN_P = '#e8f5e9', RED = '#c62828', RED_P = '#fdecea';
 const BORDER = '#e2e8f0', MUTED = '#8896a7';
 
-export default function DoctorLoginPage() {
+function DoctorLoginPageInner() {
   const router       = useRouter();
   const params       = useSearchParams();
   const [email,      setEmail]  = useState('');
@@ -182,5 +182,13 @@ export default function DoctorLoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function DoctorLoginPage() {
+  return (
+    <Suspense fallback={<div style={{display:'flex',height:'100vh',alignItems:'center',justifyContent:'center',fontFamily:'DM Sans, sans-serif',fontSize:14,color:'#8896a7'}}>Loading…</div>}>
+      <DoctorLoginPageInner/>
+    </Suspense>
   );
 }
