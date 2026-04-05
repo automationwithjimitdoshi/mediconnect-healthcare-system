@@ -7,9 +7,7 @@ const nextConfig = {
   // Ignore ESLint errors during build
   eslint: {
     ignoreDuringBuilds: true,
-  },
-  // Disable telemetry
-  experimental: {},
+  }
 };
 
 module.exports = nextConfig;

@@ -1,0 +1,7 @@
+{
+  "framework": "nextjs",
+  "installCommand": "npm install && npm install --save-dev typescript @types/node @types/react @types/react-dom",
+  "buildCommand": "npm run build",
+  "outputDirectory": ".next",
+  "regions": ["bom1"]
+}
