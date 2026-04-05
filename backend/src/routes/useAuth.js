@@ -3,30 +3,10 @@ import { persist } from 'zustand/middleware';
 import { authAPI } from '@/lib/api';
 import { connectSocket, disconnectSocket } from '@/lib/socket';
 
-interface User {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  role: 'PATIENT' | 'DOCTOR' | 'ADMIN';
-  profilePhoto?: string;
-  patient?: any;
-  doctor?: any;
-}
 
-interface AuthState {
-  user: User | null;
-  token: string | null;
-  isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (data: any) => Promise<void>;
-  logout: () => void;
-  updateUser: (data: Partial<User>) => void;
-  refreshProfile: () => Promise<void>;
-}
 
 // ── Helper: flatten { id, email, role, patient: { firstName } } → flat object ──
-function flattenUser(rawUser: any): User {
+function flattenUser(rawUser) {
   const profile = rawUser?.patient || rawUser?.doctor || {};
   return {
     id:           rawUser.id,
@@ -42,25 +22,25 @@ function flattenUser(rawUser: any): User {
 
 // ── Helper: extract token + user from backend response ──────────────────────
 // Backend returns either { token, user } or { data: { token, user } }
-function extractAuthData(resData: any): { token: string; user: any } {
+function extractAuthData(resData) {
   if (resData?.token && resData?.user) return resData;
   if (resData?.data?.token) return resData.data;
   throw new Error('Invalid auth response format');
 }
 
 // ── Helper: save to localStorage so ALL pages can read auth state ────────────
-function persistToLocalStorage(token: string, user: User) {
+function persistToLocalStorage(token, user) {
   if (typeof window === 'undefined') return;
   localStorage.setItem('mc_token',         token);
   localStorage.setItem('mc_user',          JSON.stringify(user));
   localStorage.setItem('mediconnect_token', token);  // legacy key used by api.ts interceptor
 }
 
-export const useAuthStore = create<AuthState>()(
+export const useAuthStore = create()(
   persist(
     (set) => ({
-      user:      null,
-      token:     null,
+      user: null,
+      token: null,
       isLoading: false,
 
       login: async (email, password) => {
