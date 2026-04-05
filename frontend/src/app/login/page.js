@@ -1,4 +1,6 @@
 'use client';
+export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
 /**
  * src/app/login/page.js
  * Landing login page — shows role selector (Patient / Doctor).

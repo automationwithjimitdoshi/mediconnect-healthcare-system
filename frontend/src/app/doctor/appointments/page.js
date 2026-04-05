@@ -1,4 +1,6 @@
 'use client';
+export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
 /**
  * src/app/doctor/appointments/page.js
  *
