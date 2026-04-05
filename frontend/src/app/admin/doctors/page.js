@@ -12,7 +12,6 @@ export const fetchCache = 'force-no-store';
  *  - PENDING doctors: show MRN, SMC, qualification → Approve / Reject buttons
  *  - All doctors: search, deactivate/activate, delete
  */
-'use client';
 import { useState, useEffect } from 'react';
 
 const API    = 'http://localhost:5000/api';
