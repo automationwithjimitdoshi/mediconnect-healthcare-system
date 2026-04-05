@@ -38,7 +38,7 @@ function passStrength(p) {
 
 const SPECIALTIES = ['Cardiology','Dermatology','Endocrinology','ENT','Gastroenterology','General Medicine','General Practice','Gynaecology','Haematology','Nephrology','Neurology','Oncology','Ophthalmology','Orthopaedics','Paediatrics','Psychiatry','Pulmonology','Radiology','Rheumatology','Urology','Other'];
 
-export default function RegisterPage() {
+function RegisterPage() {
   const router = useRouter();
   const [role, setRole] = useState(() => {
     // Allow ?role=DOCTOR or ?role=PATIENT in URL to pre-select the tab
