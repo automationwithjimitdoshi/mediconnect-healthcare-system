@@ -11,7 +11,7 @@ export const fetchCache = 'force-no-store';
  *   ✓ Feature D: DDx Engine sidebar panel — auto-runs when file analyzed
  */
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 const NAVY='#0c1a2e',BLUE='#1565c0',BLUE_P='#e3f0ff',RED='#c62828',RED_P='#fdecea',
@@ -920,7 +920,7 @@ function TextBubble({msg, isMe, onDelete, isRedFlag}){
 }
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
-export default function DoctorChatPage(){
+function DoctorChatPageInner(){
   const router       = useRouter();
   const searchParams = useSearchParams();
   const bottomRef    = useRef(null);
@@ -1985,5 +1985,13 @@ export default function DoctorChatPage(){
       {toast&&<div style={{position:'fixed',bottom:24,right:24,background:NAVY,color:'white',padding:'12px 20px',borderRadius:12,fontSize:13,zIndex:9999,boxShadow:'0 4px 20px rgba(0,0,0,0.2)',maxWidth:380}}>{toast}</div>}
       <style>{`@keyframes dcBounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}} @keyframes rfBlink{0%,100%{opacity:1}50%{opacity:0.3}} @keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
+  );
+}
+
+export default function DoctorChatPage() {
+  return (
+    <Suspense fallback={<div style={{display:'flex',height:'100vh',alignItems:'center',justifyContent:'center',fontFamily:'DM Sans, sans-serif',color:'#8896a7'}}>Loading…</div>}>
+      <DoctorChatPageInner/>
+    </Suspense>
   );
 }
