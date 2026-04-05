@@ -202,7 +202,7 @@ function deduplicateDoctors(list) {
 }
 
 
-export default function BookAppointmentPage() {
+function BookAppointmentPage() {
   const router       = useRouter();
   const searchParams = useSearchParams();
 
