@@ -29,7 +29,7 @@ const BORDER = '#e2e8f0';
 const SURFACE = '#f7f9fc';
 const MUTED = '#8896a7';
 const SEC = '#4a5568';
-const API = process.env.NEXT_PUBLIC_API_URL || 'process.env.NEXT_PUBLIC_API_URL ? process.env.NEXT_PUBLIC_API_URL : (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api")';
+const API = process.env.NEXT_PUBLIC_API_URL || 'process.env.NEXT_PUBLIC_API_URL ? process.env.NEXT_PUBLIC_API_URL : (process.env.NEXT_PUBLIC_API_URL || (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'))';
 
 const DOCTOR_NAV = [
   { id: 'doctorDashboard', label: 'Dashboard', icon: '⊞', href: '/doctor' },
