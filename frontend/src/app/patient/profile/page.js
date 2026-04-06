@@ -1,8 +1,24 @@
 'use client';
+export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-const API = 'http://localhost:5000/api';
+const C = {
+  navy:      '#0c1a2e',
+  blue:      '#1565c0',
+  bluePale:  '#e3f0ff',
+  surface:   '#f7f9fc',
+  border:    '#e2e8f0',
+  textMuted: '#8896a7',
+  red:       '#c62828',
+  redPale:   '#fdecea',
+  green:     '#1b5e20',
+  greenPale: '#e8f5e9',
+  amber:     '#b45309',
+};
+
+const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 export default function PatientProfilePage() {
   const router  = useRouter();
