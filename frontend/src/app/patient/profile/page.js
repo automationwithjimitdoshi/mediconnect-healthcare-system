@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 import { useEffect, useState } from 'react';
@@ -18,7 +18,7 @@ const C = {
   amber:     '#b45309',
 };
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'process.env.NEXT_PUBLIC_API_URL ? process.env.NEXT_PUBLIC_API_URL : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 export default function PatientProfilePage() {
   const router  = useRouter();
