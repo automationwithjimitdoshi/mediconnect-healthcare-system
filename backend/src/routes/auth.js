@@ -305,8 +305,14 @@ router.post('/register', [
     }
     res.status(201).json(resp);
   } catch (err) {
-    console.error('[register]', err.message);
+    console.error('[register] ERROR:', err.message, err.code);
     if (err.code === 'P2002') return res.status(400).json({ error: 'EMAIL_TAKEN' });
+    if (err.message?.includes('JWT_SECRET') || err.message?.includes('secretOrPrivateKey')) {
+      return res.status(500).json({ error: 'Server configuration error: JWT_SECRET missing. Set it in Railway Variables.' });
+    }
+    if (err.message?.includes('database') || err.message?.includes('connect') || err.code?.startsWith('P')) {
+      return res.status(500).json({ error: 'Database connection failed. Check DATABASE_URL in Railway Variables.', detail: err.message });
+    }
     res.status(500).json({ error: 'Registration failed', detail: err.message });
   }
 });
@@ -373,8 +379,14 @@ router.post('/login', [
     const token = jwt.sign({ userId: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '7d' });
     res.json({ token, user: sanitizeUser(user) });
   } catch (err) {
-    console.error('[login]', err.message);
-    res.status(500).json({ error: 'Login failed. Please try again.' });
+    console.error('[login] ERROR:', err.message, err.code);
+    if (err.message?.includes('JWT_SECRET') || err.message?.includes('secretOrPrivateKey')) {
+      return res.status(500).json({ error: 'Server configuration error: JWT_SECRET is not set. Add it to Railway Variables.' });
+    }
+    if (err.message?.includes('database') || err.message?.includes('connect') || err.code?.startsWith('P')) {
+      return res.status(500).json({ error: 'Database error. Check DATABASE_URL in Railway Variables.', detail: err.message });
+    }
+    res.status(500).json({ error: 'Login failed. Please try again.', detail: err.message });
   }
 });
 

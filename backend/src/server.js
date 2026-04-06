@@ -86,6 +86,30 @@ app.use('/api/abha',         require('./routes/abha'));
 app.get('/',       (_req, res) => res.json({ status: 'MediConnect API running', version: '1.0' }));
 app.get('/health', (_req, res) => res.json({ status: 'ok', time: new Date().toISOString(), env: process.env.NODE_ENV }));
 
+// ── Diagnostic endpoint (shows which env vars are set) ────────────────────────
+app.get('/api/debug/env', (_req, res) => {
+  res.json({
+    NODE_ENV:          process.env.NODE_ENV || 'NOT SET',
+    JWT_SECRET:        process.env.JWT_SECRET ? '✓ SET' : '❌ MISSING',
+    DATABASE_URL:      process.env.DATABASE_URL ? '✓ SET' : '❌ MISSING',
+    GEMINI_API_KEY:    process.env.GEMINI_API_KEY ? '✓ SET' : '❌ MISSING',
+    ADMIN_SECRET:      process.env.ADMIN_SECRET ? '✓ SET' : '❌ MISSING',
+    FRONTEND_URL:      process.env.FRONTEND_URL || 'NOT SET',
+    PORT:              process.env.PORT || '5000',
+  });
+});
+
+// ── DB connection test ────────────────────────────────────────────────────────
+app.get('/api/debug/db', async (_req, res) => {
+  try {
+    const prisma = require('./lib/prisma');
+    const count = await prisma.user.count();
+    res.json({ status: 'Database connected', userCount: count });
+  } catch (e) {
+    res.status(500).json({ status: 'Database FAILED', error: e.message });
+  }
+});
+
 // ── 404 ───────────────────────────────────────────────────────────────────────
 app.use((req, res) => res.status(404).json({ error: `Route not found: ${req.method} ${req.path}` }));
 
