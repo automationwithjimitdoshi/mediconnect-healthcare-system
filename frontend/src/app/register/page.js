@@ -13,7 +13,7 @@ export const fetchCache = 'force-no-store';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-const API   = 'http://localhost:5000/api';
+const API   = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 const NAVY  = '#0A1628', BLUE  = '#2563EB', BLUE_L = '#60A5FA';
 const RED   = '#DC2626', RED_P = '#FEF2F2';
 const GREEN = '#166534';
@@ -38,7 +38,7 @@ function passStrength(p) {
 
 const SPECIALTIES = ['Cardiology','Dermatology','Endocrinology','ENT','Gastroenterology','General Medicine','General Practice','Gynaecology','Haematology','Nephrology','Neurology','Oncology','Ophthalmology','Orthopaedics','Paediatrics','Psychiatry','Pulmonology','Radiology','Rheumatology','Urology','Other'];
 
-function RegisterPage() {
+export default function RegisterPage() {
   const router = useRouter();
   const [role, setRole] = useState(() => {
     // Allow ?role=DOCTOR or ?role=PATIENT in URL to pre-select the tab
