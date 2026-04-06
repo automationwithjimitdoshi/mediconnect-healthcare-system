@@ -765,7 +765,7 @@ function AIModal({ fileId, fileName, medications, tokenFn, onClose }) {
 // ─────────────────────────────────────────────────────────────────────────────
 //  MAIN PAGE
 // ─────────────────────────────────────────────────────────────────────────────
-export default function DoctorReportReview() {
+function DoctorReportReview() {
   const router = useRouter(); const searchParams = useSearchParams();
   const [mounted, setMounted] = useState(false);
   const [patients, setPatients] = useState([]);  // each patient has ._roomId
