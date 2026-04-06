@@ -21,7 +21,12 @@ export const fetchCache = 'force-no-store';
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
+
+function getParam(name) {
+  if (typeof window === 'undefined') return null;
+  return new URLSearchParams(window.location.search).get(name);
+}
 
 const NAVY = '#0c1a2e', BLUE = '#1565c0', BLUE_P = '#e3f0ff', RED = '#c62828', RED_P = '#fdecea',
   AMBER = '#b45309', AMBER_P = '#fff3e0', GREEN = '#1b5e20', GREEN_P = '#e8f5e9',
@@ -765,8 +770,8 @@ function AIModal({ fileId, fileName, medications, tokenFn, onClose }) {
 // ─────────────────────────────────────────────────────────────────────────────
 //  MAIN PAGE
 // ─────────────────────────────────────────────────────────────────────────────
-function DoctorReportReview() {
-  const router = useRouter(); const searchParams = useSearchParams();
+function DoctorReportReviewInner() {
+  const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [patients, setPatients] = useState([]);  // each patient has ._roomId
   const [selPat, setSelPat] = useState(null);
@@ -806,9 +811,9 @@ function DoctorReportReview() {
   }, []);
 
   useEffect(() => {
-    const pid = searchParams?.get('patientId');
+    const pid = getParam('patientId');
     if (pid && patients.length > 0) { const p = patients.find(x => x.id === pid); if (p) selectPatient(p); }
-  }, [patients, searchParams]);
+  }, [patients]);
 
   // ── FETCH PATIENTS via chat rooms ──────────────────────────────────────────
   // This is exactly what the doctor chat page does to show all patients.
@@ -1306,9 +1311,5 @@ function DoctorReportReview() {
 }
 
 export default function DoctorReportReview() {
-  return (
-    <Suspense fallback={<div style={{display:'flex',height:'100vh',alignItems:'center',justifyContent:'center',fontFamily:'DM Sans, sans-serif',fontSize:14,color:'#8896a7'}}>Loading…</div>}>
-      <DoctorReportReviewInner/>
-    </Suspense>
-  );
+  return <DoctorReportReviewInner/>;
 }
