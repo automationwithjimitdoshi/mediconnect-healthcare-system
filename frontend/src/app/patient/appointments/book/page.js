@@ -23,12 +23,17 @@ export const fetchCache = 'force-no-store';
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
+
+function getParam(name) {
+  if (typeof window === 'undefined') return null;
+  return new URLSearchParams(window.location.search).get(name);
+}
 
 const NAVY  ='#0c1a2e', BLUE  ='#1565c0', BLUE_P ='#e3f0ff', RED   ='#c62828', RED_P ='#fdecea',
       AMBER ='#b45309', AMBER_P='#fff3e0', GREEN ='#1b5e20', GREEN_P='#e8f5e9',
       TEAL  ='#00796b', TEAL_P ='#e0f5f0', BORDER='#e2e8f0', SURFACE='#f7f9fc', MUTED='#8896a7', SEC='#4a5568';
-const API = 'http://localhost:5000/api';
+const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 const NAV = [
   { id:'patientDashboard', label:'Dashboard',       icon:'⊞', href:'/patient'                   },
@@ -204,7 +209,6 @@ function deduplicateDoctors(list) {
 
 function BookAppointmentPage() {
   const router       = useRouter();
-  const searchParams = useSearchParams();
 
   const [mounted,  setMounted]  = useState(false);
   const [step,     setStep]     = useState(0); // 0=find 1=datetime 2=confirm
@@ -245,7 +249,7 @@ function BookAppointmentPage() {
       catch {}
     }
     // Pre-select doctor if coming from a link with ?doctorId=
-    const preId = searchParams?.get('doctorId');
+    const preId = getParam('doctorId');
     if (preId) loadSingleDoctor(preId);
     else loadDoctors();
   }, []);
@@ -706,10 +710,4 @@ function BookAppointmentPage() {
   );
 }
 
-export default function DoctorReportReview() {
-  return (
-    <Suspense fallback={<div style={{display:'flex',height:'100vh',alignItems:'center',justifyContent:'center',fontFamily:'DM Sans, sans-serif',fontSize:14,color:'#8896a7'}}>Loading…</div>}>
-      <DoctorReportReviewInner/>
-    </Suspense>
-  );
-}
+export default BookAppointmentPage;
