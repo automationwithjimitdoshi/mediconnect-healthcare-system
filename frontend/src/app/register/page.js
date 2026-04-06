@@ -439,11 +439,3 @@ function RegisterPage() {
     </div>
   );
 }
-
-export default function RegisterPage() {
-  return (
-    <Suspense fallback={<div style={{display:'flex',height:'100vh',alignItems:'center',justifyContent:'center',fontFamily:'DM Sans, sans-serif',fontSize:14,color:'#8896a7'}}>Loading…</div>}>
-      <RegisterPageInner/>
-    </Suspense>
-  );
-}
