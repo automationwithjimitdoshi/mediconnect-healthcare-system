@@ -32,8 +32,8 @@ const NAVY = '#0c1a2e', BLUE = '#1565c0', BLUE_P = '#e3f0ff', RED = '#c62828', R
   AMBER = '#b45309', AMBER_P = '#fff3e0', GREEN = '#1b5e20', GREEN_P = '#e8f5e9',
   TEAL = '#00796b', TEAL_P = '#e0f5f0', PURPLE = '#6b21a8', PURPLE_P = '#f5f3ff',
   BORDER = '#e2e8f0', SURFACE = '#f7f9fc', MUTED = '#8896a7', SEC = '#4a5568';
-const API = process.env.NEXT_PUBLIC_API_URL || 'process.env.NEXT_PUBLIC_API_URL ? process.env.NEXT_PUBLIC_API_URL : (process.env.NEXT_PUBLIC_API_URL || (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'))';
-const STATIC = (process.env.NEXT_PUBLIC_API_URL || (process.env.NEXT_PUBLIC_API_URL || (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'))).replace("/api","");
+const API = process.env.NEXT_PUBLIC_API_URL || 'process.env.NEXT_PUBLIC_API_URL ? process.env.NEXT_PUBLIC_API_URL : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const STATIC = (process.env.NEXT_PUBLIC_API_URL || (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api')).replace("/api","");
 
 const NAV = [
   { id: 'doctorDashboard', label: 'Dashboard', icon: '⊞', href: '/doctor' },

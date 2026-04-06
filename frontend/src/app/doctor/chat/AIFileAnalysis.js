@@ -42,7 +42,7 @@ export default function AIFileAnalysis({ fileId, fileName, onClose }) {
     setError(null);
     try {
       const token = localStorage.getItem('mc_token');
-      const res = await fetch(`process.env.NEXT_PUBLIC_API_URL ? process.env.NEXT_PUBLIC_API_URL : (process.env.NEXT_PUBLIC_API_URL || (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'))/files/${fileId}/analysis`, {
+      const res = await fetch(`process.env.NEXT_PUBLIC_API_URL ? process.env.NEXT_PUBLIC_API_URL : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api')/files/${fileId}/analysis`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (!res.ok) throw new Error('Failed to load analysis');
