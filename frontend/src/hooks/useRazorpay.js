@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useCallback } from 'react';
 
 function loadRazorpayScript() {
@@ -24,7 +24,7 @@ export function useRazorpay() {
 
       const token = localStorage.getItem('mc_token');
       const res   = await fetch(
-        (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api') + '/payments/create-order',
+        (process.env.NEXT_PUBLIC_API_URL || 'process.env.NEXT_PUBLIC_API_URL ? process.env.NEXT_PUBLIC_API_URL : (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api")') + '/payments/create-order',
         {
           method:  'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -46,7 +46,7 @@ export function useRazorpay() {
         handler: async (response) => {
           try {
             const vres = await fetch(
-              (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api') + '/payments/verify',
+              (process.env.NEXT_PUBLIC_API_URL || 'process.env.NEXT_PUBLIC_API_URL ? process.env.NEXT_PUBLIC_API_URL : (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api")') + '/payments/verify',
               {
                 method:  'POST',
                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -73,3 +73,4 @@ export function useRazorpay() {
 
   return { initiatePayment };
 }
+

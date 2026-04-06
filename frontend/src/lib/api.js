@@ -1,4 +1,4 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+﻿const API_URL = process.env.NEXT_PUBLIC_API_URL || 'process.env.NEXT_PUBLIC_API_URL ? process.env.NEXT_PUBLIC_API_URL : (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api")';
 
 async function request(endpoint, options = {}) {
   const token = typeof window !== 'undefined' ? localStorage.getItem('mc_token') : null;
@@ -85,3 +85,4 @@ export const patientAPI = {
   timeline: (id)     => request(`/patients/${id}/timeline`),
   files:    (id, p)  => request(`/files/patient/${id}?` + new URLSearchParams(p)),
 };
+

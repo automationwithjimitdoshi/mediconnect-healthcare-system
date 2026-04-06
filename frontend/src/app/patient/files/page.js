@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 /**
  * src/app/patient/files/page.js — My Files
  * 
@@ -21,8 +21,8 @@ import { useRouter } from 'next/navigation';
 const NAVY='#0c1a2e',BLUE='#1565c0',BLUE_P='#e3f0ff',RED='#c62828',RED_P='#fdecea',
       AMBER='#b45309',AMBER_P='#fff3e0',GREEN='#1b5e20',GREEN_P='#e8f5e9',
       TEAL='#00796b',BORDER='#e2e8f0',SURFACE='#f7f9fc',MUTED='#8896a7',SEC='#4a5568';
-const API    = 'http://localhost:5000/api';
-const STATIC = 'http://localhost:5000';
+const API    = 'process.env.NEXT_PUBLIC_API_URL ? process.env.NEXT_PUBLIC_API_URL : (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api")';
+const STATIC = (process.env.NEXT_PUBLIC_API_URL || (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api")).replace("/api","");
 
 const NAV = [
   { id:'patientDashboard', label:'Dashboard',        icon:'⊞', href:'/patient'                   },
@@ -639,3 +639,4 @@ export default function PatientFilesPage() {
     </div>
   );
 }
+

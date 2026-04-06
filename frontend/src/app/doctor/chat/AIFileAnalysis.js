@@ -1,4 +1,4 @@
-// src/app/doctor/chat/AIFileAnalysis.js
+﻿// src/app/doctor/chat/AIFileAnalysis.js
 // Drop this component into the doctor chat page
 // Import it: import AIFileAnalysis from './AIFileAnalysis';
 
@@ -42,7 +42,7 @@ export default function AIFileAnalysis({ fileId, fileName, onClose }) {
     setError(null);
     try {
       const token = localStorage.getItem('mc_token');
-      const res = await fetch(`http://localhost:5000/api/files/${fileId}/analysis`, {
+      const res = await fetch(`process.env.NEXT_PUBLIC_API_URL ? process.env.NEXT_PUBLIC_API_URL : (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api")/files/${fileId}/analysis`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (!res.ok) throw new Error('Failed to load analysis');
@@ -214,3 +214,5 @@ export default function AIFileAnalysis({ fileId, fileName, onClose }) {
     </div>
   );
 }
+
+

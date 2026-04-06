@@ -1,8 +1,8 @@
-'use client';
+﻿'use client';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const API = process.env.NEXT_PUBLIC_API_URL || 'process.env.NEXT_PUBLIC_API_URL ? process.env.NEXT_PUBLIC_API_URL : (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api")';
 
 export default function PatientDashboard() {
   const router = useRouter();
@@ -183,3 +183,5 @@ export default function PatientDashboard() {
     </AppLayout>
   );
 }
+
+

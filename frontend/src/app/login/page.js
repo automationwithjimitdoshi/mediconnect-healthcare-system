@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 /**
@@ -9,7 +9,7 @@ export const fetchCache = 'force-no-store';
 import { useState, Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
-const API  = 'http://localhost:5000/api';
+const API  = 'process.env.NEXT_PUBLIC_API_URL ? process.env.NEXT_PUBLIC_API_URL : (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api")';
 const NAVY = '#0c1a2e', BLUE = '#1565c0', BLUE_P = '#e3f0ff';
 const TEAL = '#00796b', TEAL_P = '#e0f5f0';
 const GREEN = '#1b5e20', GREEN_P = '#e8f5e9', RED = '#c62828', RED_P = '#fdecea';
@@ -186,3 +186,4 @@ export default function LoginLandingPage() {
     </Suspense>
   );
 }
+
