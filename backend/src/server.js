@@ -74,7 +74,7 @@ app.use('/api/doctor-data', require('./routes/doctor-data')); // Report Review p
 app.use('/api/abha', require('./routes/abha'));
 
 // ── Health check ──────────────────────────────────────────────────────────────
-app.get('/health', (_req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
+app.get('/health', (_req, res) => res.json({ status: 'ok', time: new Date().toISOString(), environment: process.env.NODE_ENV, }));
 
 // ── 404 ───────────────────────────────────────────────────────────────────────
 app.use((req, res) => res.status(404).json({ error: `Route not found: ${req.method} ${req.path}` }));
