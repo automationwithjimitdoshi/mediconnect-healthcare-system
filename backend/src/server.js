@@ -8,12 +8,12 @@
 require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
 
 const express = require('express');
-const cors    = require('cors');
-const path    = require('path');
-const http    = require('http');
-const fs      = require('fs');
+const cors = require('cors');
+const path = require('path');
+const http = require('http');
+const fs = require('fs');
 
-const app    = express();
+const app = express();
 const server = http.createServer(app);
 
 // ── Socket.io ─────────────────────────────────────────────────────────────────
@@ -25,7 +25,7 @@ try {
   });
   app.set('io', io);
   io.on('connection', socket => {
-    socket.on('join-room',  roomId => socket.join('room-'  + roomId));
+    socket.on('join-room', roomId => socket.join('room-' + roomId));
     socket.on('leave-room', roomId => socket.leave('room-' + roomId));
   });
   console.log('✓ Socket.io ready');
@@ -35,7 +35,11 @@ try {
 
 // ── Core middleware ───────────────────────────────────────────────────────────
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:3001', process.env.FRONTEND_URL].filter(Boolean),
+  origin: [
+    'http://localhost:3000',
+    process.env.FRONTEND_URL,
+    /\.vercel\.app$/,
+  ].filter(Boolean),
   credentials: true,
 }));
 app.use(express.json({ limit: '50mb' }));
@@ -56,18 +60,18 @@ app.use('/uploads', express.static(uploadsDir));
 console.log('✓ Uploads:', uploadsDir);
 
 // ── Routes ────────────────────────────────────────────────────────────────────
-app.use('/api/auth',         require('./routes/auth'));
-app.use('/api/doctors',      require('./routes/doctors'));
-app.use('/api/patients',     require('./routes/patients'));
+app.use('/api/auth', require('./routes/auth'));
+app.use('/api/doctors', require('./routes/doctors'));
+app.use('/api/patients', require('./routes/patients'));
 app.use('/api/appointments', require('./routes/appointments'));
-app.use('/api/payments',     require('./routes/payments'));
-app.use('/api/chat',         require('./routes/chat'));
-app.use('/api/files',        require('./routes/files'));
-app.use('/api/ai',           require('./routes/ai'));
-app.use('/api/reports',      require('./routes/reports'));      // Report Analyzer
-app.use('/api/cdss',         require('./routes/cdss'));         // CDSS features
-app.use('/api/doctor-data',  require('./routes/doctor-data')); // Report Review patients
-app.use('/api/abha',         require('./routes/abha'));
+app.use('/api/payments', require('./routes/payments'));
+app.use('/api/chat', require('./routes/chat'));
+app.use('/api/files', require('./routes/files'));
+app.use('/api/ai', require('./routes/ai'));
+app.use('/api/reports', require('./routes/reports'));      // Report Analyzer
+app.use('/api/cdss', require('./routes/cdss'));         // CDSS features
+app.use('/api/doctor-data', require('./routes/doctor-data')); // Report Review patients
+app.use('/api/abha', require('./routes/abha'));
 
 // ── Health check ──────────────────────────────────────────────────────────────
 app.get('/health', (_req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
