@@ -44,6 +44,8 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.get('/', (req, res) => res.json({ status: 'MediConnect API running', version: '1.0' }));
+
 
 // ── Static uploads ────────────────────────────────────────────────────────────
 // backend/src/ → ../../ → mediconnect app/uploads/
