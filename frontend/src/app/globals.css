@@ -1,39 +1,139 @@
-* { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { height: 100%; }
-body {
-  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-  background: #f7f9fc;
-  color: #0c1a2e;
-  font-size: 14px;
-  line-height: 1.5;
-  -webkit-font-smoothing: antialiased;
+/* ── Base reset ─────────────────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
-input, select, textarea, button {
-  font-family: 'DM Sans', sans-serif;
-}
-::-webkit-scrollbar { width: 5px; height: 5px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
-a { text-decoration: none; color: inherit; }
 
-@keyframes fadeUp {
-  from { opacity: 0; transform: translateY(10px); }
-  to   { opacity: 1; transform: translateY(0); }
+/* ── Fonts ──────────────────────────────────────────────────────────────────── */
+html {
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
+
+/* ── Background — prevents white flash between pages ────────────────────────── */
+html,
+body {
+  background-color: #f7f9fc;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── Page transition fade ───────────────────────────────────────────────────── */
+#__next_page {
+  animation: mc-page-in 0.15s ease-out both;
+}
+
+@keyframes mc-page-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── Navigation sidebar — stable background so it never flashes ─────────────── */
+/* The sidebar background matches NAVY so there's no white gap during transition */
+body > div > div > div:first-child {
+  background: #0c1a2e;
+}
+
+/* ── Smooth interactive elements ─────────────────────────────────────────────── */
+button {
+  cursor: pointer;
+  transition: opacity 0.1s ease, background-color 0.15s ease, transform 0.1s ease;
+}
+
+button:active {
+  transform: scale(0.98);
+}
+
+a {
+  transition: color 0.15s ease, opacity 0.15s ease;
+}
+
+/* ── Input focus smoothness ──────────────────────────────────────────────────── */
+input, textarea, select {
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  outline: none;
+}
+
+input:focus, textarea:focus, select:focus {
+  box-shadow: 0 0 0 3px rgba(21, 101, 192, 0.12);
+}
+
+/* ── Card hover smoothness ───────────────────────────────────────────────────── */
+.card-hover {
+  transition: box-shadow 0.2s ease, transform 0.15s ease;
+}
+
+.card-hover:hover {
+  box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+  transform: translateY(-1px);
+}
+
+/* ── Skeleton loading pulse ──────────────────────────────────────────────────── */
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+
+.skeleton {
+  animation: skeleton-pulse 1.4s ease-in-out infinite;
+  background: #e2e8f0;
+  border-radius: 6px;
+}
+
+/* ── Spinner ─────────────────────────────────────────────────────────────────── */
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
-@keyframes pulse {
-  0%,100% { opacity: 1; }
-  50%      { opacity: 0.4; }
+
+.spinner {
+  animation: spin 0.7s linear infinite;
 }
-@keyframes bounce {
-  0%,80%,100% { transform: scale(0.6); opacity: 0.5; }
-  40%         { transform: scale(1);   opacity: 1; }
+
+/* ── Toast slide up ──────────────────────────────────────────────────────────── */
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
-.fade-up { animation: fadeUp 0.25s ease; }
-.spin    { animation: spin 1s linear infinite; }
-.pulse   { animation: pulse 2s ease infinite; }
-.dot1    { animation: bounce 1.2s infinite; }
-.dot2    { animation: bounce 1.2s infinite 0.2s; }
-.dot3    { animation: bounce 1.2s infinite 0.4s; }
+
+/* ── Modal fade in ───────────────────────────────────────────────────────────── */
+@keyframes modal-in {
+  from { opacity: 0; transform: scale(0.97); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* ── Remove tap highlight on mobile ─────────────────────────────────────────── */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ── Smooth scroll ───────────────────────────────────────────────────────────── */
+html {
+  scroll-behavior: smooth;
+}
+
+/* ── Scrollbar styling ───────────────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 99px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}

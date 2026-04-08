@@ -18,7 +18,7 @@ const NAVY='#0c1a2e',BLUE='#1565c0',BLUE_P='#e3f0ff',RED='#c62828',RED_P='#fdece
       AMBER='#b45309',AMBER_P='#fff3e0',GREEN='#1b5e20',GREEN_P='#e8f5e9',
       TEAL='#00796b',TEAL_P='#e0f5f0',PURPLE='#6b21a8',
       BORDER='#e2e8f0',SURFACE='#f7f9fc',MUTED='#8896a7',SEC='#4a5568';
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const API = 'http://localhost:5000/api';
 
 const NAV = [
   { id:'doctorDashboard', label:'Dashboard',    icon:'⊞', href:'/doctor'              },
@@ -386,8 +386,8 @@ export default function DoctorPatientsPage() {
     LOW:      patients.filter(p=>!p.urgencyLevel||p.urgencyLevel==='LOW').length,
   };
 
-  if (!mounted) return null;
-
+  
+  if(!mounted) return <div style={{display:'flex',height:'100vh',background:'#f7f9fc'}}/>;
   return (
     <div style={{display:'flex',height:'100vh',overflow:'hidden',fontFamily:'DM Sans, sans-serif'}}>
       <Sidebar active="doctorPatients"/>
@@ -487,5 +487,3 @@ export default function DoctorPatientsPage() {
     </div>
   );
 }
-
-

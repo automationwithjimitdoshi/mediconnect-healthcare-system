@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 /**
@@ -464,8 +464,7 @@ function BookAppointmentPage() {
   const today  = new Date().toISOString().split('T')[0];
   const maxDate= new Date(Date.now() + 60*24*3600*1000).toISOString().split('T')[0];
 
-  if (!mounted) return null;
-
+  
   return (
     <div style={{ display:'flex', height:'100vh', overflow:'hidden', fontFamily:'DM Sans, sans-serif' }}>
       <Sidebar active="patientBook" />
@@ -711,4 +710,3 @@ function BookAppointmentPage() {
 }
 
 export default BookAppointmentPage;
-

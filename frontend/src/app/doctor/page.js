@@ -10,72 +10,72 @@ export const fetchCache = 'force-no-store';
  *     Critical alerts (red) always render above everything else in the page.
  */
 
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 
-const NAVY = '#0c1a2e';
-const BLUE = '#1565c0';
-const BLUE_P = '#e3f0ff';
-const RED = '#c62828';
-const RED_P = '#fdecea';
-const AMBER = '#b45309';
+const NAVY    = '#0c1a2e';
+const BLUE    = '#1565c0';
+const BLUE_P  = '#e3f0ff';
+const RED     = '#c62828';
+const RED_P   = '#fdecea';
+const AMBER   = '#b45309';
 const AMBER_P = '#fff3e0';
-const GREEN = '#1b5e20';
+const GREEN   = '#1b5e20';
 const GREEN_P = '#e8f5e9';
-const TEAL = '#00796b';
-const TEAL_P = '#e0f5f0';
-const PURPLE = '#6b21a8';
-const BORDER = '#e2e8f0';
+const TEAL    = '#00796b';
+const TEAL_P  = '#e0f5f0';
+const PURPLE  = '#6b21a8';
+const BORDER  = '#e2e8f0';
 const SURFACE = '#f7f9fc';
-const MUTED = '#8896a7';
-const SEC = '#4a5568';
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const MUTED   = '#8896a7';
+const SEC     = '#4a5568';
+const API     = 'http://localhost:5000/api';
 
 const DOCTOR_NAV = [
-  { id: 'doctorDashboard', label: 'Dashboard', icon: '⊞', href: '/doctor' },
-  { id: 'doctorPatients', label: 'All Patients', icon: '👥', href: '/doctor/patients' },
-  { id: 'doctorAppts', label: 'Appointments', icon: '📅', href: '/doctor/appointments' },
-  { id: 'doctorChat', label: 'Patient Chat', icon: '💬', href: '/doctor/chat', badge: 3 },
-  { id: 'doctorUpdates', label: 'Updates', icon: '🔔', href: '/doctor/updates', badge: 2 },
-  { id: 'doctorReports', label: 'Report Review', icon: '🔬', href: '/doctor/reports', badge: 'PREMIUM' },
+  { id: 'doctorDashboard', label: 'Dashboard',     icon: '⊞', href: '/doctor'                },
+  { id: 'doctorPatients',  label: 'All Patients',  icon: '👥', href: '/doctor/patients'       },
+  { id: 'doctorAppts',     label: 'Appointments',  icon: '📅', href: '/doctor/appointments'   },
+  { id: 'doctorChat',      label: 'Patient Chat',  icon: '💬', href: '/doctor/chat',   badge: 3       },
+  { id: 'doctorUpdates',   label: 'Updates',       icon: '🔔', href: '/doctor/updates', badge: 2      },
+  { id: 'doctorReports',   label: 'Report Review', icon: '🔬', href: '/doctor/reports', badge: 'PREMIUM' },
 ];
 
 
 // ── Doctor Profile Modal (inlined) ──────────────────────────────────────
-const SPECIALTIES = ['General Practice', 'Internal Medicine', 'Cardiology', 'Endocrinology & Diabetology',
-  'Neurology', 'Orthopedics', 'Dermatology', 'Psychiatry', 'Pediatrics', 'Gynecology & Obstetrics',
-  'Ophthalmology', 'ENT', 'Pulmonology', 'Nephrology', 'Gastroenterology', 'Oncology',
-  'Rheumatology', 'Urology', 'General Surgery', 'Radiology', 'Anesthesiology', 'Emergency Medicine'];
+const SPECIALTIES=['General Practice','Internal Medicine','Cardiology','Endocrinology & Diabetology',
+  'Neurology','Orthopedics','Dermatology','Psychiatry','Pediatrics','Gynecology & Obstetrics',
+  'Ophthalmology','ENT','Pulmonology','Nephrology','Gastroenterology','Oncology',
+  'Rheumatology','Urology','General Surgery','Radiology','Anesthesiology','Emergency Medicine'];
 
 function inp(err) {
   return {
-    width: '100%', padding: '9px 12px', border: `1.5px solid ${err ? RED : BORDER}`,
-    borderRadius: 9, fontSize: 13, outline: 'none', boxSizing: 'border-box',
-    fontFamily: 'DM Sans, sans-serif', color: NAVY, background: 'white',
+    width:'100%', padding:'9px 12px', border:`1.5px solid ${err?RED:BORDER}`,
+    borderRadius:9, fontSize:13, outline:'none', boxSizing:'border-box',
+    fontFamily:'DM Sans, sans-serif', color:NAVY, background:'white',
   };
 }
 
 function DoctorProfileModal({ onClose, tokenFn, onSignOut }) {
-  const [view, setView] = useState('profile'); // profile | edit | password | public
-  const [doctor, setDoctor] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [toast, setToast] = useState('');
-  const [toastType, setToastType] = useState('ok');
+  const [view,     setView]     = useState('profile'); // profile | edit | password | public
+  const [doctor,   setDoctor]   = useState(null);
+  const [loading,  setLoading]  = useState(true);
+  const [saving,   setSaving]   = useState(false);
+  const [toast,    setToast]    = useState('');
+  const [toastType,setToastType]= useState('ok');
   const [appEmail, setAppEmail] = useState('');
 
   // Edit form
   const [form, setForm] = useState({
-    firstName: '', lastName: '', specialty: '', qualification: '',
-    hospital: '', bio: '', consultFee: '', phone: '',
+    firstName:'', lastName:'', specialty:'', qualification:'',
+    hospital:'', bio:'', consultFee:'', phone:'',
   });
 
   // Password form
-  const [pwForm, setPwForm] = useState({ current: '', next: '', confirm: '' });
-  const [pwErr, setPwErr] = useState('');
-  const [pwOk, setPwOk] = useState(false);
+  const [pwForm, setPwForm]   = useState({ current:'', next:'', confirm:'' });
+  const [pwErr,  setPwErr]    = useState('');
+  const [pwOk,   setPwOk]     = useState(false);
 
-  const showToast = (msg, type = 'ok') => {
+  const showToast = (msg, type='ok') => {
     setToast(msg); setToastType(type);
     setTimeout(() => setToast(''), 3500);
   };
@@ -89,7 +89,7 @@ function DoctorProfileModal({ onClose, tokenFn, onSignOut }) {
       try {
         const u = JSON.parse(localStorage.getItem('mc_user') || '{}');
         setAppEmail(u.email || '');
-      } catch { }
+      } catch {}
     } else {
       setAppEmail(ae);
     }
@@ -106,14 +106,14 @@ function DoctorProfileModal({ onClose, tokenFn, onSignOut }) {
         const doc = d.data || d.doctor || d;
         setDoctor(doc);
         setForm({
-          firstName: doc.firstName || '',
-          lastName: doc.lastName || '',
-          specialty: doc.specialty || '',
+          firstName:     doc.firstName     || '',
+          lastName:      doc.lastName      || '',
+          specialty:     doc.specialty     || '',
           qualification: doc.qualification || '',
-          hospital: doc.hospital || '',
-          bio: doc.bio || '',
-          consultFee: doc.consultFee ? (doc.consultFee / 100).toString() : '',
-          phone: doc.phone || '',
+          hospital:      doc.hospital      || '',
+          bio:           doc.bio           || '',
+          consultFee:    doc.consultFee ? (doc.consultFee / 100).toString() : '',
+          phone:         doc.phone         || '',
         });
       }
     } catch (e) {
@@ -132,14 +132,14 @@ function DoctorProfileModal({ onClose, tokenFn, onSignOut }) {
         method: 'PUT',
         headers: { Authorization: `Bearer ${tokenFn()}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          firstName: form.firstName.trim(),
-          lastName: form.lastName.trim(),
-          specialty: form.specialty.trim(),
+          firstName:     form.firstName.trim(),
+          lastName:      form.lastName.trim(),
+          specialty:     form.specialty.trim(),
           qualification: form.qualification.trim(),
-          hospital: form.hospital.trim(),
-          bio: form.bio.trim(),
-          phone: form.phone.trim(),
-          consultFee: form.consultFee ? Math.round(parseFloat(form.consultFee) * 100) : undefined,
+          hospital:      form.hospital.trim(),
+          bio:           form.bio.trim(),
+          phone:         form.phone.trim(),
+          consultFee:    form.consultFee ? Math.round(parseFloat(form.consultFee) * 100) : undefined,
         }),
       });
       const d = await r.json();
@@ -152,7 +152,7 @@ function DoctorProfileModal({ onClose, tokenFn, onSignOut }) {
             u.doctor = { ...u.doctor, ...d.data };
             localStorage.setItem('mc_user', JSON.stringify(u));
           }
-        } catch { }
+        } catch {}
         setDoctor(prev => ({ ...prev, ...d.data }));
         setView('profile');
       } else {
@@ -190,7 +190,7 @@ function DoctorProfileModal({ onClose, tokenFn, onSignOut }) {
   async function changePassword() {
     setPwErr(''); setPwOk(false);
     if (!pwForm.current.trim()) { setPwErr('Enter your current password.'); return; }
-    if (pwForm.next.length < 8) { setPwErr('New password must be at least 8 characters.'); return; }
+    if (pwForm.next.length < 8)  { setPwErr('New password must be at least 8 characters.'); return; }
     if (pwForm.next !== pwForm.confirm) { setPwErr('Passwords do not match.'); return; }
     setSaving(true);
     try {
@@ -202,7 +202,7 @@ function DoctorProfileModal({ onClose, tokenFn, onSignOut }) {
       const d = await r.json();
       if (r.ok) {
         setPwOk(true);
-        setPwForm({ current: '', next: '', confirm: '' });
+        setPwForm({ current:'', next:'', confirm:'' });
         showToast('✅ Password changed successfully!');
         setTimeout(() => setView('profile'), 1500);
       } else {
@@ -216,58 +216,48 @@ function DoctorProfileModal({ onClose, tokenFn, onSignOut }) {
 
   function copyAppEmail() {
     if (!appEmail) return;
-    navigator.clipboard.writeText(appEmail).then(() => showToast('📋 App email copied!')).catch(() => { });
+    navigator.clipboard.writeText(appEmail).then(() => showToast('📋 App email copied!')).catch(() => {});
   }
 
   const initials = doctor
-    ? `${doctor.firstName?.[0] || ''}${doctor.lastName?.[0] || ''}`.toUpperCase()
+    ? `${doctor.firstName?.[0]||''}${doctor.lastName?.[0]||''}`.toUpperCase()
     : '?';
 
   return (
     <div
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
-      style={{
-        position: 'fixed', inset: 0, background: 'rgba(12,26,46,0.6)', zIndex: 9999,
-        display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-start', padding: 0
-      }}>
+      style={{ position:'fixed', inset:0, background:'rgba(12,26,46,0.6)', zIndex:9999,
+               display:'flex', alignItems:'flex-start', justifyContent:'flex-start', padding:0 }}>
 
       {/* Panel slides in from left, aligned with sidebar */}
-      <div style={{
-        width: 320, height: '100vh', background: 'white', boxShadow: '4px 0 32px rgba(0,0,0,0.2)',
-        display: 'flex', flexDirection: 'column', overflowY: 'auto', fontFamily: 'DM Sans, sans-serif'
-      }}>
+      <div style={{ width:320, height:'100vh', background:'white', boxShadow:'4px 0 32px rgba(0,0,0,0.2)',
+                    display:'flex', flexDirection:'column', overflowY:'auto', fontFamily:'DM Sans, sans-serif' }}>
 
         {/* ── Header ── */}
-        <div style={{ background: NAVY, padding: '20px 20px 16px', flexShrink: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', fontFamily: 'monospace', letterSpacing: '0.1em' }}>DOCTOR PROFILE</div>
+        <div style={{ background:NAVY, padding:'20px 20px 16px', flexShrink:0 }}>
+          <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:14 }}>
+            <div style={{ fontSize:12, color:'rgba(255,255,255,0.4)', fontFamily:'monospace', letterSpacing:'0.1em' }}>DOCTOR PROFILE</div>
             <button onClick={onClose}
-              style={{
-                background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', width: 28, height: 28,
-                borderRadius: '50%', cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center'
-              }}>×</button>
+              style={{ background:'rgba(255,255,255,0.1)', border:'none', color:'white', width:28, height:28,
+                       borderRadius:'50%', cursor:'pointer', fontSize:16, display:'flex', alignItems:'center', justifyContent:'center' }}>×</button>
           </div>
 
           {/* Avatar + name */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-            <div style={{
-              width: 56, height: 56, borderRadius: '50%', background: BLUE_P, color: BLUE,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 20, fontWeight: 700, flexShrink: 0, border: '3px solid rgba(255,255,255,0.2)'
-            }}>
+          <div style={{ display:'flex', alignItems:'center', gap:14 }}>
+            <div style={{ width:56, height:56, borderRadius:'50%', background:BLUE_P, color:BLUE,
+                          display:'flex', alignItems:'center', justifyContent:'center',
+                          fontSize:20, fontWeight:700, flexShrink:0, border:'3px solid rgba(255,255,255,0.2)' }}>
               {initials}
             </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 16, fontWeight: 700, color: 'white', marginBottom: 2 }}>
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ fontSize:16, fontWeight:700, color:'white', marginBottom:2 }}>
                 {doctor ? `Dr. ${doctor.firstName} ${doctor.lastName}` : loading ? 'Loading…' : 'Doctor'}
               </div>
-              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>{doctor?.specialty || ''}</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
-                <div style={{
-                  width: 7, height: 7, borderRadius: '50%',
-                  background: doctor?.isAvailable ? '#4ade80' : '#f87171'
-                }} />
-                <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>
+              <div style={{ fontSize:12, color:'rgba(255,255,255,0.6)' }}>{doctor?.specialty || ''}</div>
+              <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:4 }}>
+                <div style={{ width:7, height:7, borderRadius:'50%',
+                              background: doctor?.isAvailable ? '#4ade80' : '#f87171' }} />
+                <span style={{ fontSize:11, color:'rgba(255,255,255,0.5)' }}>
                   {doctor?.isAvailable ? 'Available for appointments' : 'Not available'}
                 </span>
               </div>
@@ -277,106 +267,92 @@ function DoctorProfileModal({ onClose, tokenFn, onSignOut }) {
           {/* App email badge */}
           {appEmail && (
             <div onClick={copyAppEmail}
-              style={{
-                marginTop: 12, background: 'rgba(255,255,255,0.08)', borderRadius: 8,
-                padding: '7px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8
-              }}
+              style={{ marginTop:12, background:'rgba(255,255,255,0.08)', borderRadius:8,
+                       padding:'7px 12px', cursor:'pointer', display:'flex', alignItems:'center', gap:8 }}
               title="Click to copy your app login email">
-              <span style={{ fontSize: 12 }}>🔑</span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)', fontFamily: 'monospace', letterSpacing: '0.08em' }}>APP LOGIN EMAIL</div>
-                <div style={{
-                  fontSize: 11.5, color: 'rgba(255,255,255,0.85)', fontFamily: 'monospace',
-                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
-                }}>{appEmail}</div>
+              <span style={{ fontSize:12 }}>🔑</span>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontSize:9, color:'rgba(255,255,255,0.4)', fontFamily:'monospace', letterSpacing:'0.08em' }}>APP LOGIN EMAIL</div>
+                <div style={{ fontSize:11.5, color:'rgba(255,255,255,0.85)', fontFamily:'monospace',
+                              overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{appEmail}</div>
               </div>
-              <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>📋</span>
+              <span style={{ fontSize:11, color:'rgba(255,255,255,0.4)' }}>📋</span>
             </div>
           )}
         </div>
 
         {/* ── Navigation tabs within modal ── */}
         {view === 'profile' && (
-          <div style={{ flex: 1, overflowY: 'auto' }}>
+          <div style={{ flex:1, overflowY:'auto' }}>
             {loading ? (
-              <div style={{ padding: 40, textAlign: 'center', color: MUTED }}>Loading profile…</div>
+              <div style={{ padding:40, textAlign:'center', color:MUTED }}>Loading profile…</div>
             ) : (
               <>
                 {/* Quick stats */}
-                <div style={{ padding: '14px 20px', borderBottom: `1px solid ${BORDER}` }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div style={{ padding:'14px 20px', borderBottom:`1px solid ${BORDER}` }}>
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
                     {[
-                      { label: 'Hospital', value: doctor?.hospital || '—', icon: '🏥' },
-                      { label: 'Qualification', value: doctor?.qualification || '—', icon: '🎓' },
-                      { label: 'Consult Fee', value: doctor?.consultFee ? `₹${(doctor.consultFee / 100).toFixed(0)}` : '—', icon: '💳' },
-                      { label: 'Phone', value: doctor?.phone || '—', icon: '📱' },
+                      { label:'Hospital', value: doctor?.hospital || '—', icon:'🏥' },
+                      { label:'Qualification', value: doctor?.qualification || '—', icon:'🎓' },
+                      { label:'Consult Fee', value: doctor?.consultFee ? `₹${(doctor.consultFee/100).toFixed(0)}` : '—', icon:'💳' },
+                      { label:'Phone', value: doctor?.phone || '—', icon:'📱' },
                     ].map(s => (
-                      <div key={s.label} style={{ background: SURFACE, borderRadius: 9, padding: '10px 12px' }}>
-                        <div style={{ fontSize: 11, color: MUTED, marginBottom: 3 }}>{s.icon} {s.label}</div>
-                        <div style={{ fontSize: 12.5, fontWeight: 600, color: NAVY, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.value}</div>
+                      <div key={s.label} style={{ background:SURFACE, borderRadius:9, padding:'10px 12px' }}>
+                        <div style={{ fontSize:11, color:MUTED, marginBottom:3 }}>{s.icon} {s.label}</div>
+                        <div style={{ fontSize:12.5, fontWeight:600, color:NAVY, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{s.value}</div>
                       </div>
                     ))}
                   </div>
                   {doctor?.bio && (
-                    <div style={{ marginTop: 10, padding: '10px 12px', background: SURFACE, borderRadius: 9, fontSize: 12.5, color: SEC, lineHeight: 1.65 }}>
+                    <div style={{ marginTop:10, padding:'10px 12px', background:SURFACE, borderRadius:9, fontSize:12.5, color:SEC, lineHeight:1.65 }}>
                       {doctor.bio}
                     </div>
                   )}
                 </div>
 
                 {/* Action buttons */}
-                <div style={{ padding: '14px 20px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ padding:'14px 20px', display:'flex', flexDirection:'column', gap:8 }}>
 
                   <button onClick={() => setView('edit')}
-                    style={{
-                      width: '100%', padding: '11px 16px', background: BLUE, color: 'white', border: 'none',
-                      borderRadius: 10, fontSize: 13.5, fontWeight: 700, cursor: 'pointer', textAlign: 'left',
-                      display: 'flex', alignItems: 'center', gap: 10
-                    }}>
-                    <span style={{ fontSize: 18 }}>✏️</span> Edit Profile
+                    style={{ width:'100%', padding:'11px 16px', background:BLUE, color:'white', border:'none',
+                             borderRadius:10, fontSize:13.5, fontWeight:700, cursor:'pointer', textAlign:'left',
+                             display:'flex', alignItems:'center', gap:10 }}>
+                    <span style={{ fontSize:18 }}>✏️</span> Edit Profile
                   </button>
 
                   <button onClick={toggleAvailability} disabled={saving}
-                    style={{
-                      width: '100%', padding: '11px 16px', border: `1px solid ${doctor?.isAvailable ? GREEN : AMBER}`,
-                      background: doctor?.isAvailable ? GREEN_P : AMBER_P,
-                      color: doctor?.isAvailable ? GREEN : AMBER,
-                      borderRadius: 10, fontSize: 13.5, fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer',
-                      textAlign: 'left', display: 'flex', alignItems: 'center', gap: 10
-                    }}>
-                    <span style={{ fontSize: 18 }}>{doctor?.isAvailable ? '🟢' : '🔴'}</span>
+                    style={{ width:'100%', padding:'11px 16px', border:`1px solid ${doctor?.isAvailable?GREEN:AMBER}`,
+                             background: doctor?.isAvailable ? GREEN_P : AMBER_P,
+                             color: doctor?.isAvailable ? GREEN : AMBER,
+                             borderRadius:10, fontSize:13.5, fontWeight:700, cursor:saving?'not-allowed':'pointer',
+                             textAlign:'left', display:'flex', alignItems:'center', gap:10 }}>
+                    <span style={{ fontSize:18 }}>{doctor?.isAvailable ? '🟢' : '🔴'}</span>
                     {saving ? 'Updating…' : doctor?.isAvailable ? 'Set as Unavailable' : 'Set as Available'}
                   </button>
 
                   <button onClick={() => setView('password')}
-                    style={{
-                      width: '100%', padding: '11px 16px', background: SURFACE, color: SEC, border: `1px solid ${BORDER}`,
-                      borderRadius: 10, fontSize: 13.5, fontWeight: 600, cursor: 'pointer', textAlign: 'left',
-                      display: 'flex', alignItems: 'center', gap: 10
-                    }}>
-                    <span style={{ fontSize: 18 }}>🔒</span> Change Password
+                    style={{ width:'100%', padding:'11px 16px', background:SURFACE, color:SEC, border:`1px solid ${BORDER}`,
+                             borderRadius:10, fontSize:13.5, fontWeight:600, cursor:'pointer', textAlign:'left',
+                             display:'flex', alignItems:'center', gap:10 }}>
+                    <span style={{ fontSize:18 }}>🔒</span> Change Password
                   </button>
 
                   {appEmail && (
                     <button onClick={copyAppEmail}
-                      style={{
-                        width: '100%', padding: '11px 16px', background: SURFACE, color: SEC, border: `1px solid ${BORDER}`,
-                        borderRadius: 10, fontSize: 13.5, fontWeight: 600, cursor: 'pointer', textAlign: 'left',
-                        display: 'flex', alignItems: 'center', gap: 10
-                      }}>
-                      <span style={{ fontSize: 18 }}>📋</span> Copy App Login Email
+                      style={{ width:'100%', padding:'11px 16px', background:SURFACE, color:SEC, border:`1px solid ${BORDER}`,
+                               borderRadius:10, fontSize:13.5, fontWeight:600, cursor:'pointer', textAlign:'left',
+                               display:'flex', alignItems:'center', gap:10 }}>
+                      <span style={{ fontSize:18 }}>📋</span> Copy App Login Email
                     </button>
                   )}
 
-                  <div style={{ height: 1, background: BORDER, margin: '4px 0' }} />
+                  <div style={{ height:1, background:BORDER, margin:'4px 0' }} />
 
                   <button onClick={onSignOut}
-                    style={{
-                      width: '100%', padding: '11px 16px', background: RED_P, color: RED, border: `1px solid #f5c6cb`,
-                      borderRadius: 10, fontSize: 13.5, fontWeight: 700, cursor: 'pointer', textAlign: 'left',
-                      display: 'flex', alignItems: 'center', gap: 10
-                    }}>
-                    <span style={{ fontSize: 18 }}>🚪</span> Sign Out
+                    style={{ width:'100%', padding:'11px 16px', background:RED_P, color:RED, border:`1px solid #f5c6cb`,
+                             borderRadius:10, fontSize:13.5, fontWeight:700, cursor:'pointer', textAlign:'left',
+                             display:'flex', alignItems:'center', gap:10 }}>
+                    <span style={{ fontSize:18 }}>🚪</span> Sign Out
                   </button>
                 </div>
               </>
@@ -386,22 +362,22 @@ function DoctorProfileModal({ onClose, tokenFn, onSignOut }) {
 
         {/* ── Edit Profile ── */}
         {view === 'edit' && (
-          <div style={{ flex: 1, overflowY: 'auto' }}>
-            <div style={{ padding: '14px 20px', borderBottom: `1px solid ${BORDER}`, display: 'flex', alignItems: 'center', gap: 10 }}>
-              <button onClick={() => setView('profile')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: MUTED, fontSize: 18, padding: 0 }}>←</button>
-              <div style={{ fontSize: 14, fontWeight: 700, color: NAVY }}>Edit Profile</div>
+          <div style={{ flex:1, overflowY:'auto' }}>
+            <div style={{ padding:'14px 20px', borderBottom:`1px solid ${BORDER}`, display:'flex', alignItems:'center', gap:10 }}>
+              <button onClick={() => setView('profile')} style={{ background:'none', border:'none', cursor:'pointer', color:MUTED, fontSize:18, padding:0 }}>←</button>
+              <div style={{ fontSize:14, fontWeight:700, color:NAVY }}>Edit Profile</div>
             </div>
-            <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ padding:20, display:'flex', flexDirection:'column', gap:12 }}>
               {[
-                { label: 'First Name *', field: 'firstName', type: 'text', placeholder: 'Raj' },
-                { label: 'Last Name *', field: 'lastName', type: 'text', placeholder: 'Sharma' },
-                { label: 'Phone', field: 'phone', type: 'tel', placeholder: '+91 98765 43210' },
-                { label: 'Hospital / Clinic', field: 'hospital', type: 'text', placeholder: 'Apollo Hospital' },
-                { label: 'Qualification', field: 'qualification', type: 'text', placeholder: 'MBBS, MD' },
-                { label: 'Consultation Fee (₹)', field: 'consultFee', type: 'number', placeholder: '500' },
+                { label:'First Name *',     field:'firstName',     type:'text',   placeholder:'Raj' },
+                { label:'Last Name *',      field:'lastName',      type:'text',   placeholder:'Sharma' },
+                { label:'Phone',            field:'phone',         type:'tel',    placeholder:'+91 98765 43210' },
+                { label:'Hospital / Clinic',field:'hospital',      type:'text',   placeholder:'Apollo Hospital' },
+                { label:'Qualification',    field:'qualification', type:'text',   placeholder:'MBBS, MD' },
+                { label:'Consultation Fee (₹)', field:'consultFee', type:'number', placeholder:'500' },
               ].map(({ label, field, type, placeholder }) => (
                 <div key={field}>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: SEC, display: 'block', marginBottom: 5 }}>{label}</label>
+                  <label style={{ fontSize:12, fontWeight:600, color:SEC, display:'block', marginBottom:5 }}>{label}</label>
                   <input type={type} value={form[field]} placeholder={placeholder}
                     onChange={e => setForm(p => ({ ...p, [field]: e.target.value }))}
                     style={inp()} />
@@ -409,26 +385,24 @@ function DoctorProfileModal({ onClose, tokenFn, onSignOut }) {
               ))}
 
               <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: SEC, display: 'block', marginBottom: 5 }}>Specialty</label>
-                <select value={form.specialty} onChange={e => setForm(p => ({ ...p, specialty: e.target.value }))} style={{ ...inp(), background: 'white' }}>
+                <label style={{ fontSize:12, fontWeight:600, color:SEC, display:'block', marginBottom:5 }}>Specialty</label>
+                <select value={form.specialty} onChange={e => setForm(p => ({ ...p, specialty: e.target.value }))} style={{ ...inp(), background:'white' }}>
                   <option value="">Select specialty…</option>
                   {SPECIALTIES.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
 
               <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: SEC, display: 'block', marginBottom: 5 }}>Bio / About</label>
+                <label style={{ fontSize:12, fontWeight:600, color:SEC, display:'block', marginBottom:5 }}>Bio / About</label>
                 <textarea value={form.bio} placeholder="Brief description visible to patients…"
                   onChange={e => setForm(p => ({ ...p, bio: e.target.value }))}
                   rows={3}
-                  style={{ ...inp(), resize: 'vertical', minHeight: 72 }} />
+                  style={{ ...inp(), resize:'vertical', minHeight:72 }} />
               </div>
 
               <button onClick={saveProfile} disabled={saving}
-                style={{
-                  width: '100%', padding: 12, background: saving ? '#93c5fd' : BLUE, color: 'white', border: 'none',
-                  borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer'
-                }}>
+                style={{ width:'100%', padding:12, background:saving?'#93c5fd':BLUE, color:'white', border:'none',
+                         borderRadius:10, fontSize:14, fontWeight:700, cursor:saving?'not-allowed':'pointer' }}>
                 {saving ? '⏳ Saving…' : '💾 Save Changes'}
               </button>
             </div>
@@ -437,45 +411,43 @@ function DoctorProfileModal({ onClose, tokenFn, onSignOut }) {
 
         {/* ── Change Password ── */}
         {view === 'password' && (
-          <div style={{ flex: 1, overflowY: 'auto' }}>
-            <div style={{ padding: '14px 20px', borderBottom: `1px solid ${BORDER}`, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ flex:1, overflowY:'auto' }}>
+            <div style={{ padding:'14px 20px', borderBottom:`1px solid ${BORDER}`, display:'flex', alignItems:'center', gap:10 }}>
               <button onClick={() => { setView('profile'); setPwErr(''); setPwOk(false); }}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: MUTED, fontSize: 18, padding: 0 }}>←</button>
-              <div style={{ fontSize: 14, fontWeight: 700, color: NAVY }}>Change Password</div>
+                style={{ background:'none', border:'none', cursor:'pointer', color:MUTED, fontSize:18, padding:0 }}>←</button>
+              <div style={{ fontSize:14, fontWeight:700, color:NAVY }}>Change Password</div>
             </div>
-            <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ padding:20, display:'flex', flexDirection:'column', gap:14 }}>
               {pwOk && (
-                <div style={{ background: GREEN_P, border: '1px solid #a5d6a7', borderRadius: 10, padding: '12px 14px', fontSize: 13, color: GREEN }}>
+                <div style={{ background:GREEN_P, border:'1px solid #a5d6a7', borderRadius:10, padding:'12px 14px', fontSize:13, color:GREEN }}>
                   ✅ Password changed successfully!
                 </div>
               )}
               {pwErr && (
-                <div style={{ background: RED_P, border: '1px solid #f5c6cb', borderRadius: 10, padding: '12px 14px', fontSize: 13, color: RED }}>
+                <div style={{ background:RED_P, border:'1px solid #f5c6cb', borderRadius:10, padding:'12px 14px', fontSize:13, color:RED }}>
                   {pwErr}
                 </div>
               )}
               {[
-                { label: 'Current Password', field: 'current', placeholder: 'Your current password' },
-                { label: 'New Password', field: 'next', placeholder: 'Minimum 8 characters' },
-                { label: 'Confirm New', field: 'confirm', placeholder: 'Repeat new password' },
+                { label:'Current Password', field:'current', placeholder:'Your current password' },
+                { label:'New Password',     field:'next',    placeholder:'Minimum 8 characters' },
+                { label:'Confirm New',      field:'confirm', placeholder:'Repeat new password' },
               ].map(({ label, field, placeholder }) => (
                 <div key={field}>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: SEC, display: 'block', marginBottom: 5 }}>{label}</label>
+                  <label style={{ fontSize:12, fontWeight:600, color:SEC, display:'block', marginBottom:5 }}>{label}</label>
                   <input type="password" value={pwForm[field]} placeholder={placeholder}
                     onChange={e => { setPwForm(p => ({ ...p, [field]: e.target.value })); setPwErr(''); }}
                     style={inp()} />
                 </div>
               ))}
 
-              <div style={{ background: SURFACE, borderRadius: 9, padding: '10px 12px', fontSize: 12, color: MUTED, lineHeight: 1.6 }}>
+              <div style={{ background:SURFACE, borderRadius:9, padding:'10px 12px', fontSize:12, color:MUTED, lineHeight:1.6 }}>
                 💡 After changing your password, you will need to sign in again on all devices.
               </div>
 
               <button onClick={changePassword} disabled={saving}
-                style={{
-                  width: '100%', padding: 12, background: saving ? '#93c5fd' : BLUE, color: 'white', border: 'none',
-                  borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer'
-                }}>
+                style={{ width:'100%', padding:12, background:saving?'#93c5fd':BLUE, color:'white', border:'none',
+                         borderRadius:10, fontSize:14, fontWeight:700, cursor:saving?'not-allowed':'pointer' }}>
                 {saving ? '⏳ Changing…' : '🔒 Change Password'}
               </button>
             </div>
@@ -484,12 +456,10 @@ function DoctorProfileModal({ onClose, tokenFn, onSignOut }) {
 
         {/* ── Toast ── */}
         {toast && (
-          <div style={{
-            position: 'sticky', bottom: 16, margin: '0 16px',
-            background: toastType === 'err' ? RED : NAVY,
-            color: 'white', padding: '10px 16px', borderRadius: 10, fontSize: 13,
-            boxShadow: '0 4px 16px rgba(0,0,0,0.2)', textAlign: 'center'
-          }}>
+          <div style={{ position:'sticky', bottom:16, margin:'0 16px',
+                        background: toastType==='err' ? RED : NAVY,
+                        color:'white', padding:'10px 16px', borderRadius:10, fontSize:13,
+                        boxShadow:'0 4px 16px rgba(0,0,0,0.2)', textAlign:'center' }}>
             {toast}
           </div>
         )}
@@ -500,32 +470,32 @@ function DoctorProfileModal({ onClose, tokenFn, onSignOut }) {
 
 function Sidebar({ active }) {
   const router = useRouter();
-  const [showProfile, setShowProfile] = useState(false);
-  const [chatBadge, setChatBadge] = useState(0);
+  const [showProfile,setShowProfile]=useState(false);
+  const [chatBadge,  setChatBadge]  = useState(0);
   const [alertBadge, setAlertBadge] = useState(0);
   useEffect(() => {
     const tok = localStorage.getItem('mc_token') || '';
     if (!tok) return;
     const h = { Authorization: `Bearer ${tok}` };
     // Unread chat count
-    fetch(`${API}/chat/rooms?limit=100`, { headers: h }).then(r => r.ok ? r.json() : null)
+    fetch(`${API}/chat/rooms?limit=100`, {headers:h}).then(r=>r.ok?r.json():null)
       .then(d => {
-        const total = (d?.data || []).reduce((sum, r) => sum + (r.unreadCount || 0), 0);
+        const total = (d?.data||[]).reduce((sum,r) => sum + (r.unreadCount||0), 0);
         setChatBadge(total);
-      }).catch(() => { });
+      }).catch(()=>{});
     // Alert count
-    fetch(`${API}/cdss/alerts`, { headers: h }).then(r => r.ok ? r.json() : null)
-      .then(d => setAlertBadge((d?.data || d?.alerts || []).length))
-      .catch(() => { });
+    fetch(`${API}/cdss/alerts`, {headers:h}).then(r=>r.ok?r.json():null)
+      .then(d => setAlertBadge((d?.data||d?.alerts||[]).length))
+      .catch(()=>{});
   }, []);
   const [doctorName, setDoctorName] = useState('');
-  const [specialty, setSpecialty] = useState('');
+  const [specialty,  setSpecialty]  = useState('');
   useEffect(() => {
     try {
       const u = JSON.parse(localStorage.getItem('mc_user') || '{}');
       if (u?.doctor) { setDoctorName(`Dr. ${u.doctor.firstName || ''} ${u.doctor.lastName || ''}`.trim()); setSpecialty(u.doctor.specialty || 'Doctor'); }
       else { setDoctorName(u?.email || 'Doctor'); setSpecialty('Doctor Portal'); }
-    } catch { }
+    } catch {}
   }, []);
   const initials = doctorName.split(' ').filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase() || 'DR';
   return (
@@ -539,7 +509,7 @@ function Sidebar({ active }) {
           <div><div style={{ fontSize: 13, fontWeight: 600, color: 'white' }}>MediConnect AI</div><div style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', fontFamily: 'monospace', letterSpacing: '0.1em' }}>DOCTOR PORTAL</div></div>
         </div>
       </div>
-      <div onClick={() => setShowProfile(true)} title="View/Edit Profile" style={{ cursor: "pointer", margin: '10px 10px 6px', background: 'rgba(255,255,255,0.06)', borderRadius: 9, padding: '8px 10px', display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div onClick={()=>setShowProfile(true)} title="View/Edit Profile" style={{ cursor: "pointer", margin: '10px 10px 6px', background: 'rgba(255,255,255,0.06)', borderRadius: 9, padding: '8px 10px', display: 'flex', alignItems: 'center', gap: 8 }}>
         <div style={{ width: 30, height: 30, borderRadius: '50%', background: TEAL_P, color: TEAL, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{initials}</div>
         <div style={{ flex: 1, minWidth: 0 }}><div suppressHydrationWarning style={{ fontSize: 12, fontWeight: 500, color: 'white', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doctorName || 'Doctor'}</div><div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>{specialty}</div></div>
       </div>
@@ -552,7 +522,7 @@ function Sidebar({ active }) {
               style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '9px 12px', margin: '2px 0', borderRadius: 8, cursor: 'pointer', border: 'none', textAlign: 'left', background: isA ? BLUE : 'transparent', color: isA ? 'white' : 'rgba(255,255,255,0.55)', fontSize: 13, fontFamily: 'DM Sans, sans-serif', fontWeight: isA ? 500 : 400, transition: 'background 0.12s' }}>
               <span style={{ fontSize: 14 }}>{item.icon}</span>
               <span style={{ flex: 1 }}>{item.label}</span>
-              {(item.badge != null && item.badge !== 0 && (item.badge === '_chat' ? chatBadge : item.badge === '_alerts' ? alertBadge : item.badge) !== 0) && <span style={{ background: item.badge === 'PREMIUM' ? PURPLE : '#ef4444', color: item.badge === 'PREMIUM' ? '#e9d5ff' : 'white', fontSize: item.badge === 'PREMIUM' ? 8 : 10, fontWeight: 600, padding: item.badge === 'PREMIUM' ? '2px 5px' : '1px 5px', borderRadius: 99 }}>{item.badge === '_chat' ? chatBadge : item.badge === '_alerts' ? alertBadge : item.badge}</span>}
+              {(item.badge != null && item.badge !== 0 && (item.badge==='_chat'?chatBadge:item.badge==='_alerts'?alertBadge:item.badge) !== 0) && <span style={{ background: item.badge === 'PREMIUM' ? PURPLE : '#ef4444', color: item.badge === 'PREMIUM' ? '#e9d5ff' : 'white', fontSize: item.badge === 'PREMIUM' ? 8 : 10, fontWeight: 600, padding: item.badge === 'PREMIUM' ? '2px 5px' : '1px 5px', borderRadius: 99 }}>{item.badge==='_chat'?chatBadge:item.badge==='_alerts'?alertBadge:item.badge}</span>}
             </button>
           );
         })}
@@ -563,11 +533,11 @@ function Sidebar({ active }) {
           🚪 Sign out
         </button>
       </div>
-      {showProfile && (
+      {showProfile&&(
         <DoctorProfileModal
-          tokenFn={() => localStorage.getItem('mc_token') || ''}
-          onClose={() => setShowProfile(false)}
-          onSignOut={() => { localStorage.removeItem('mc_token'); localStorage.removeItem('mc_user'); router.push('/login'); }}
+          tokenFn={()=>localStorage.getItem('mc_token')||''}
+          onClose={()=>setShowProfile(false)}
+          onSignOut={()=>{localStorage.removeItem('mc_token');localStorage.removeItem('mc_user');router.push('/login');}}
         />
       )}
     </div>
@@ -661,13 +631,13 @@ const ECG_DIAGNOSES = [
 
 const ECHO_TASKS = [
   'Left ventricular ejection fraction (LVEF)',
-  'LV end-diastolic volume', 'LV end-systolic volume',
-  'LV wall motion abnormality', 'LV hypertrophy',
-  'Right ventricular function', 'RV enlargement',
-  'Mitral valve regurgitation', 'Mitral valve stenosis',
-  'Aortic valve regurgitation', 'Aortic valve stenosis',
-  'Tricuspid valve regurgitation', 'Pericardial effusion',
-  'Diastolic dysfunction grade', 'Left atrial enlargement',
+  'LV end-diastolic volume','LV end-systolic volume',
+  'LV wall motion abnormality','LV hypertrophy',
+  'Right ventricular function','RV enlargement',
+  'Mitral valve regurgitation','Mitral valve stenosis',
+  'Aortic valve regurgitation','Aortic valve stenosis',
+  'Tricuspid valve regurgitation','Pericardial effusion',
+  'Diastolic dysfunction grade','Left atrial enlargement',
   'Segmental wall motion abnormality',
 ];
 
@@ -677,9 +647,9 @@ async function runCardiacAnalysis(imageBase64, mimeType, mode) {
   let r;
   try {
     r = await fetch(`${API}/ai/cardiac-analyze`, {
-      method: 'POST',
+      method:  'POST',
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type':  'application/json',
         'Authorization': `Bearer ${tok}`,
       },
       body: JSON.stringify({ imageBase64, mimeType, mode }),
@@ -711,37 +681,37 @@ function normaliseMime(type) {
 }
 
 function ECGEchoTools({ isDoctor = false }) {
-  const [mode, setMode] = React.useState('ecg');
-  const [file, setFile] = React.useState(null);
-  const [preview, setPreview] = React.useState(null);
-  const [isPdf, setIsPdf] = React.useState(false);
+  const [mode,      setMode]      = React.useState('ecg');
+  const [file,      setFile]      = React.useState(null);
+  const [preview,   setPreview]   = React.useState(null);
+  const [isPdf,     setIsPdf]     = React.useState(false);
   const [analyzing, setAnalyzing] = React.useState(false);
-  const [result, setResult] = React.useState(null);
-  const [error, setError] = React.useState('');
-  const [dragOver, setDragOver] = React.useState(false);
+  const [result,    setResult]    = React.useState(null);
+  const [error,     setError]     = React.useState('');
+  const [dragOver,  setDragOver]  = React.useState(false);
   const fileRef = React.useRef(null);
 
   const C = {
-    NAVY: '#0c1a2e', BLUE: '#1565c0', BLUE_P: '#e3f0ff',
-    RED: '#c62828', RED_P: '#fdecea',
-    AMBER: '#b45309', AMBER_P: '#fff3e0',
-    GREEN: '#1b5e20', GREEN_P: '#e8f5e9',
-    TEAL: '#00796b',
-    BORDER: '#e2e8f0', SURF: '#f7f9fc', MUTED: '#8896a7', SEC: '#4a5568',
+    NAVY:'#0c1a2e', BLUE:'#1565c0', BLUE_P:'#e3f0ff',
+    RED:'#c62828',  RED_P:'#fdecea',
+    AMBER:'#b45309',AMBER_P:'#fff3e0',
+    GREEN:'#1b5e20',GREEN_P:'#e8f5e9',
+    TEAL:'#00796b',
+    BORDER:'#e2e8f0', SURF:'#f7f9fc', MUTED:'#8896a7', SEC:'#4a5568',
   };
 
   const modeConfig = {
-    ecg: { icon: '🫀', label: '12-Lead ECG', color: C.RED, bg: C.RED_P, desc: 'Detects: AF, Sinus Tachycardia/Bradycardia, LBBB, RBBB, 1° AV Block' },
-    echo: { icon: '🔊', label: 'Echocardiogram', color: C.TEAL, bg: '#e0f5f0', desc: 'PanEcho: 39 tasks — LVEF, valve disease, wall motion, diastolic function' },
+    ecg:  { icon:'🫀', label:'12-Lead ECG',    color:C.RED,  bg:C.RED_P,   desc:'Detects: AF, Sinus Tachycardia/Bradycardia, LBBB, RBBB, 1° AV Block' },
+    echo: { icon:'🔊', label:'Echocardiogram', color:C.TEAL, bg:'#e0f5f0', desc:'PanEcho: 39 tasks — LVEF, valve disease, wall motion, diastolic function' },
   };
   const cfg = modeConfig[mode];
 
   // Accepted MIME types for both tools
   const ACCEPTED_TYPES = [
-    'image/jpeg', 'image/jpg', 'image/png', 'image/webp',
+    'image/jpeg','image/jpg','image/png','image/webp',
     'application/pdf',
   ];
-  const ACCEPTED_EXTS = '.jpg,.jpeg,.png,.webp,.pdf';
+  const ACCEPTED_EXTS  = '.jpg,.jpeg,.png,.webp,.pdf';
 
   function handleFile(f) {
     if (!f) return;
@@ -772,12 +742,12 @@ function ECGEchoTools({ isDoctor = false }) {
     try {
       const base64 = await new Promise((res, rej) => {
         const reader = new FileReader();
-        reader.onload = e => res(e.target.result.split(',')[1]);
+        reader.onload  = e => res(e.target.result.split(',')[1]);
         reader.onerror = () => rej(new Error('Could not read file'));
         reader.readAsDataURL(file);
       });
       const mime = normaliseMime(file.type);
-      const res = await runCardiacAnalysis(base64, mime, mode);
+      const res  = await runCardiacAnalysis(base64, mime, mode);
       setResult(res);
     } catch (e) {
       setError(e.message || 'Analysis failed. Please try again.');
@@ -791,44 +761,42 @@ function ECGEchoTools({ isDoctor = false }) {
   }
 
   return (
-    <div style={{ background: 'white', borderRadius: 14, border: `1px solid ${C.BORDER}`, overflow: 'hidden', marginBottom: 20 }}>
+    <div style={{ background:'white', borderRadius:14, border:`1px solid ${C.BORDER}`, overflow:'hidden', marginBottom:20 }}>
 
       {/* ── Header ── */}
-      <div style={{ background: `linear-gradient(135deg,${C.NAVY} 0%,#1a2e4a 100%)`, padding: '16px 20px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-          <span style={{ fontSize: 24 }}>🧠</span>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 15, fontWeight: 700, color: 'white' }}>Cardiac AI Diagnostics</div>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>Powered by Claude AI · For clinical reference only</div>
+      <div style={{ background:`linear-gradient(135deg,${C.NAVY} 0%,#1a2e4a 100%)`, padding:'16px 20px' }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:12 }}>
+          <span style={{ fontSize:24 }}>🧠</span>
+          <div style={{ flex:1 }}>
+            <div style={{ fontSize:15, fontWeight:700, color:'white' }}>Cardiac AI Diagnostics</div>
+            <div style={{ fontSize:11, color:'rgba(255,255,255,0.5)' }}>Powered by Claude AI · For clinical reference only</div>
           </div>
-          <div style={{ background: 'rgba(255,255,255,0.12)', borderRadius: 8, padding: '3px 10px', fontSize: 10, color: 'rgba(255,255,255,0.7)', fontWeight: 700 }}>BETA</div>
+          <div style={{ background:'rgba(255,255,255,0.12)', borderRadius:8, padding:'3px 10px', fontSize:10, color:'rgba(255,255,255,0.7)', fontWeight:700 }}>BETA</div>
         </div>
         {/* Mode tabs */}
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display:'flex', gap:8 }}>
           {[
-            { id: 'ecg', label: '🫀 ECG Analysis', sub: '12-lead · 6 diagnoses' },
-            { id: 'echo', label: '🔊 Echo Interpretation', sub: 'PanEcho · 39 tasks' },
+            { id:'ecg',  label:'🫀 ECG Analysis',       sub:'12-lead · 6 diagnoses'  },
+            { id:'echo', label:'🔊 Echo Interpretation', sub:'PanEcho · 39 tasks'     },
           ].map(t => (
             <button key={t.id} onClick={() => { setMode(t.id); reset(); }}
-              style={{
-                flex: 1, padding: '9px 12px', borderRadius: 9, cursor: 'pointer', textAlign: 'left',
-                border: `1.5px solid ${mode === t.id ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.15)'}`,
-                background: mode === t.id ? 'rgba(255,255,255,0.15)' : 'transparent', color: 'white'
-              }}>
-              <div style={{ fontSize: 12.5, fontWeight: 700 }}>{t.label}</div>
-              <div style={{ fontSize: 10, opacity: 0.55, marginTop: 1 }}>{t.sub}</div>
+              style={{ flex:1, padding:'9px 12px', borderRadius:9, cursor:'pointer', textAlign:'left',
+                border:`1.5px solid ${mode===t.id?'rgba(255,255,255,0.5)':'rgba(255,255,255,0.15)'}`,
+                background:mode===t.id?'rgba(255,255,255,0.15)':'transparent', color:'white' }}>
+              <div style={{ fontSize:12.5, fontWeight:700 }}>{t.label}</div>
+              <div style={{ fontSize:10, opacity:0.55, marginTop:1 }}>{t.sub}</div>
             </button>
           ))}
         </div>
       </div>
 
-      <div style={{ padding: 20 }}>
+      <div style={{ padding:20 }}>
 
         {/* Instructions */}
-        <div style={{ background: C.SURF, borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 12.5, color: C.SEC, lineHeight: 1.7 }}>
+        <div style={{ background:C.SURF, borderRadius:10, padding:'10px 14px', marginBottom:16, fontSize:12.5, color:C.SEC, lineHeight:1.7 }}>
           {mode === 'ecg' ? (
             <><strong>ECG Tool:</strong> Upload a scanned <strong>12-lead ECG</strong> as <strong>JPG, PNG or PDF</strong>. Detects:
-              <strong style={{ color: C.RED }}> Atrial Fibrillation, Sinus Tachycardia, Sinus Bradycardia, Left Bundle Branch Block, Right Bundle Branch Block, First-Degree AV Block</strong>.
+              <strong style={{ color:C.RED }}> Atrial Fibrillation, Sinus Tachycardia, Sinus Bradycardia, Left Bundle Branch Block, Right Bundle Branch Block, First-Degree AV Block</strong>.
               Reports <em>"None of the model diagnoses"</em> if none found. Note: only for 12-lead ECGs.</>
           ) : (
             <><strong>PanEcho:</strong> Upload an <strong>echocardiogram image or PDF report</strong>. View-agnostic multi-task model performing <strong>39 reporting tasks</strong>: LVEF, wall motion, valve disease, diastolic function, RV function, pericardial assessment and more.</>
@@ -843,92 +811,78 @@ function ECGEchoTools({ isDoctor = false }) {
               onDragOver={e => { e.preventDefault(); setDragOver(true); }}
               onDragLeave={() => setDragOver(false)}
               onDrop={e => { e.preventDefault(); setDragOver(false); handleFile(e.dataTransfer.files[0]); }}
-              style={{
-                border: `2px dashed ${dragOver || file ? cfg.color : C.BORDER}`,
-                borderRadius: 12, padding: file ? 16 : '28px 20px',
-                textAlign: file ? 'left' : 'center', cursor: 'pointer',
-                background: dragOver || file ? cfg.bg : C.SURF, transition: 'all 0.2s',
-                marginBottom: 14
-              }}>
-              <input ref={fileRef} type="file" accept={ACCEPTED_EXTS} style={{ display: 'none' }}
+              style={{ border:`2px dashed ${dragOver||file ? cfg.color : C.BORDER}`,
+                borderRadius:12, padding: file ? 16 : '28px 20px',
+                textAlign: file ? 'left' : 'center', cursor:'pointer',
+                background: dragOver||file ? cfg.bg : C.SURF, transition:'all 0.2s',
+                marginBottom:14 }}>
+              <input ref={fileRef} type="file" accept={ACCEPTED_EXTS} style={{ display:'none' }}
                 onChange={e => handleFile(e.target.files?.[0])} />
               {file ? (
-                <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
+                <div style={{ display:'flex', gap:14, alignItems:'center' }}>
                   {/* Preview or PDF icon */}
                   {preview ? (
                     <img src={preview} alt="preview"
-                      style={{
-                        width: 80, height: 60, objectFit: 'cover', borderRadius: 8,
-                        border: `1px solid ${C.BORDER}`, flexShrink: 0
-                      }} />
+                      style={{ width:80, height:60, objectFit:'cover', borderRadius:8,
+                        border:`1px solid ${C.BORDER}`, flexShrink:0 }} />
                   ) : (
-                    <div style={{
-                      width: 80, height: 60, background: '#fff0f0', borderRadius: 8,
-                      border: `1px solid ${C.BORDER}`, display: 'flex', flexDirection: 'column',
-                      alignItems: 'center', justifyContent: 'center', flexShrink: 0
-                    }}>
-                      <span style={{ fontSize: 26 }}>📄</span>
-                      <span style={{ fontSize: 9, color: C.RED, fontWeight: 700 }}>PDF</span>
+                    <div style={{ width:80, height:60, background:'#fff0f0', borderRadius:8,
+                      border:`1px solid ${C.BORDER}`, display:'flex', flexDirection:'column',
+                      alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                      <span style={{ fontSize:26 }}>📄</span>
+                      <span style={{ fontSize:9, color:C.RED, fontWeight:700 }}>PDF</span>
                     </div>
                   )}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{
-                      fontSize: 13.5, fontWeight: 600, color: C.NAVY,
-                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
-                    }}>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontSize:13.5, fontWeight:600, color:C.NAVY,
+                      overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
                       {file.name}
                     </div>
-                    <div style={{ fontSize: 11.5, color: C.MUTED, marginTop: 3 }}>
-                      {(file.size / 1024 / 1024).toFixed(2)} MB · {isPdf ? 'PDF document' : 'Image file'}
+                    <div style={{ fontSize:11.5, color:C.MUTED, marginTop:3 }}>
+                      {(file.size/1024/1024).toFixed(2)} MB · {isPdf ? 'PDF document' : 'Image file'}
                     </div>
                     <button onClick={e => { e.stopPropagation(); reset(); }}
-                      style={{
-                        fontSize: 11, color: C.RED, background: 'none', border: 'none',
-                        cursor: 'pointer', padding: 0, marginTop: 4, fontFamily: 'DM Sans, sans-serif'
-                      }}>
+                      style={{ fontSize:11, color:C.RED, background:'none', border:'none',
+                        cursor:'pointer', padding:0, marginTop:4, fontFamily:'DM Sans, sans-serif' }}>
                       × Remove
                     </button>
                   </div>
                 </div>
               ) : (
                 <>
-                  <div style={{ fontSize: 36, marginBottom: 10 }}>{cfg.icon}</div>
-                  <div style={{ fontWeight: 700, fontSize: 14, color: C.NAVY, marginBottom: 4 }}>
+                  <div style={{ fontSize:36, marginBottom:10 }}>{cfg.icon}</div>
+                  <div style={{ fontWeight:700, fontSize:14, color:C.NAVY, marginBottom:4 }}>
                     {dragOver ? 'Drop file here' : `Upload ${cfg.label}`}
                   </div>
-                  <div style={{ fontSize: 12, color: C.MUTED, marginBottom: 6 }}>
+                  <div style={{ fontSize:12, color:C.MUTED, marginBottom:6 }}>
                     JPG · PNG · WebP · PDF &nbsp;·&nbsp; Max 25 MB
                   </div>
-                  <div style={{ fontSize: 11, color: C.MUTED }}>Click to browse or drag &amp; drop</div>
+                  <div style={{ fontSize:11, color:C.MUTED }}>Click to browse or drag &amp; drop</div>
                 </>
               )}
             </div>
 
             {/* Error */}
             {error && (
-              <div style={{
-                background: C.RED_P, border: '1px solid #f5c6cb', borderRadius: 9,
-                padding: '10px 14px', fontSize: 13, color: C.RED, marginBottom: 14, lineHeight: 1.6
-              }}>
+              <div style={{ background:C.RED_P, border:'1px solid #f5c6cb', borderRadius:9,
+                padding:'10px 14px', fontSize:13, color:C.RED, marginBottom:14, lineHeight:1.6 }}>
                 <strong>⚠️ Error:</strong> {error}
               </div>
             )}
 
             {/* Analyze button */}
             <button onClick={analyze} disabled={!file || analyzing}
-              style={{
-                width: '100%', padding: 12, fontSize: 14, fontWeight: 700, border: 'none',
-                borderRadius: 10, cursor: !file || analyzing ? 'not-allowed' : 'pointer',
+              style={{ width:'100%', padding:12, fontSize:14, fontWeight:700, border:'none',
+                borderRadius:10, cursor: !file||analyzing ? 'not-allowed' : 'pointer',
                 background: !file ? '#94a3b8' : analyzing ? '#64748b' : cfg.color,
-                color: 'white', transition: 'background 0.2s'
-              }}>
+                color:'white', transition:'background 0.2s' }}>
               {analyzing
                 ? `⏳ Analysing ${cfg.label}… (10–30 seconds)`
                 : file ? `🔍 Analyse ${cfg.label}` : `Upload a file to analyse`}
             </button>
 
             {analyzing && (
-              <div style={{ textAlign: 'center', padding: '16px 0 4px', color: C.MUTED, fontSize: 12.5 }}>
+              <div style={{ textAlign:'center', padding:'16px 0 4px', color:C.MUTED, fontSize:12.5 }}>
                 Claude AI is reading your {isPdf ? 'PDF' : 'image'} — please wait…
               </div>
             )}
@@ -937,20 +891,16 @@ function ECGEchoTools({ isDoctor = false }) {
           /* ── Results ── */
           <>
             {mode === 'ecg'
-              ? <ECGResults result={result} C={C} />
+              ? <ECGResults  result={result} C={C} />
               : <EchoResults result={result} C={C} />
             }
             <button onClick={reset}
-              style={{
-                width: '100%', padding: '10px', marginTop: 14, background: C.SURF, color: C.SEC,
-                border: `1px solid ${C.BORDER}`, borderRadius: 9, fontSize: 13, fontWeight: 600, cursor: 'pointer'
-              }}>
+              style={{ width:'100%', padding:'10px', marginTop:14, background:C.SURF, color:C.SEC,
+                border:`1px solid ${C.BORDER}`, borderRadius:9, fontSize:13, fontWeight:600, cursor:'pointer' }}>
               ← Analyse Another File
             </button>
-            <div style={{
-              marginTop: 10, padding: '8px 12px', background: C.AMBER_P, borderRadius: 8,
-              fontSize: 11.5, color: C.AMBER, lineHeight: 1.6
-            }}>
+            <div style={{ marginTop:10, padding:'8px 12px', background:C.AMBER_P, borderRadius:8,
+              fontSize:11.5, color:C.AMBER, lineHeight:1.6 }}>
               ⚠️ <strong>Disclaimer:</strong> This AI output is for clinical reference only. Always confirm findings with a qualified cardiologist before making any clinical decisions.
             </div>
           </>
@@ -961,58 +911,50 @@ function ECGEchoTools({ isDoctor = false }) {
 }
 
 function ECGResults({ result, C }) {
-  const detected = Array.isArray(result.detected) ? result.detected : [];
+  const detected  = Array.isArray(result.detected) ? result.detected : [];
   const hasIssues = detected.length > 0;
-  const confColor = c => c === 'high' ? C.GREEN : c === 'medium' ? C.AMBER : C.MUTED;
-  const confBg = c => c === 'high' ? C.GREEN_P : c === 'medium' ? C.AMBER_P : C.SURF;
+  const confColor = c => c==='high'?C.GREEN : c==='medium'?C.AMBER : C.MUTED;
+  const confBg    = c => c==='high'?C.GREEN_P : c==='medium'?C.AMBER_P : C.SURF;
 
   return (
     <div>
       {/* Urgent warning */}
       {result.warning && (
-        <div style={{
-          background: C.RED_P, border: '1.5px solid #f5c6cb', borderRadius: 10,
-          padding: '12px 14px', marginBottom: 14, display: 'flex', gap: 10, alignItems: 'flex-start'
-        }}>
-          <span style={{ fontSize: 20, flexShrink: 0 }}>🚨</span>
+        <div style={{ background:C.RED_P, border:'1.5px solid #f5c6cb', borderRadius:10,
+          padding:'12px 14px', marginBottom:14, display:'flex', gap:10, alignItems:'flex-start' }}>
+          <span style={{ fontSize:20, flexShrink:0 }}>🚨</span>
           <div>
-            <div style={{ fontWeight: 700, fontSize: 13.5, color: C.RED, marginBottom: 3 }}>Urgent Finding</div>
-            <div style={{ fontSize: 13, color: C.RED }}>{result.warning}</div>
+            <div style={{ fontWeight:700, fontSize:13.5, color:C.RED, marginBottom:3 }}>Urgent Finding</div>
+            <div style={{ fontSize:13, color:C.RED }}>{result.warning}</div>
           </div>
         </div>
       )}
 
       {/* Main diagnosis panel */}
-      <div style={{
-        background: hasIssues ? C.RED_P : C.GREEN_P,
-        border: `1.5px solid ${hasIssues ? '#f5c6cb' : '#a5d6a7'}`,
-        borderRadius: 12, padding: '14px 18px', marginBottom: 14
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: hasIssues ? 12 : 0 }}>
-          <span style={{ fontSize: 22 }}>{hasIssues ? '⚠️' : '✅'}</span>
-          <div style={{ fontSize: 14, fontWeight: 700, color: hasIssues ? C.RED : C.GREEN }}>
+      <div style={{ background:hasIssues?C.RED_P:C.GREEN_P,
+        border:`1.5px solid ${hasIssues?'#f5c6cb':'#a5d6a7'}`,
+        borderRadius:12, padding:'14px 18px', marginBottom:14 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom: hasIssues?12:0 }}>
+          <span style={{ fontSize:22 }}>{hasIssues?'⚠️':'✅'}</span>
+          <div style={{ fontSize:14, fontWeight:700, color:hasIssues?C.RED:C.GREEN }}>
             {hasIssues
-              ? `${detected.length} Diagnosis${detected.length > 1 ? 'es' : ''} Detected`
+              ? `${detected.length} Diagnosis${detected.length>1?'es':''} Detected`
               : 'None of the model diagnoses detected'}
           </div>
         </div>
         {hasIssues && detected.map(d => {
           const conf = result.confidence?.[d];
           return (
-            <div key={d} style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              padding: '8px 12px', background: 'white', borderRadius: 8,
-              border: '1px solid #f5c6cb', marginBottom: 6
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div style={{ width: 8, height: 8, borderRadius: '50%', background: C.RED, flexShrink: 0 }} />
-                <span style={{ fontSize: 13.5, fontWeight: 600, color: C.NAVY }}>{d}</span>
+            <div key={d} style={{ display:'flex', alignItems:'center', justifyContent:'space-between',
+              padding:'8px 12px', background:'white', borderRadius:8,
+              border:'1px solid #f5c6cb', marginBottom:6 }}>
+              <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                <div style={{ width:8, height:8, borderRadius:'50%', background:C.RED, flexShrink:0 }}/>
+                <span style={{ fontSize:13.5, fontWeight:600, color:C.NAVY }}>{d}</span>
               </div>
               {conf && (
-                <span style={{
-                  fontSize: 11, fontWeight: 700, background: confBg(conf),
-                  color: confColor(conf), padding: '2px 8px', borderRadius: 99
-                }}>
+                <span style={{ fontSize:11, fontWeight:700, background:confBg(conf),
+                  color:confColor(conf), padding:'2px 8px', borderRadius:99 }}>
                   {conf} confidence
                 </span>
               )}
@@ -1023,15 +965,15 @@ function ECGResults({ result, C }) {
 
       {/* ECG metrics */}
       {(result.rate || result.rhythm || result.axis) && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, marginBottom: 14 }}>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:8, marginBottom:14 }}>
           {[
-            { label: 'Heart Rate', value: result.rate },
-            { label: 'Rhythm', value: result.rhythm },
-            { label: 'Axis', value: result.axis },
-          ].filter(m => m.value).map(m => (
-            <div key={m.label} style={{ background: C.SURF, borderRadius: 9, padding: '10px 12px', border: `1px solid ${C.BORDER}` }}>
-              <div style={{ fontSize: 10.5, color: C.MUTED, marginBottom: 3 }}>{m.label}</div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: C.NAVY }}>{m.value}</div>
+            { label:'Heart Rate', value:result.rate   },
+            { label:'Rhythm',     value:result.rhythm  },
+            { label:'Axis',       value:result.axis    },
+          ].filter(m=>m.value).map(m=>(
+            <div key={m.label} style={{ background:C.SURF, borderRadius:9, padding:'10px 12px', border:`1px solid ${C.BORDER}` }}>
+              <div style={{ fontSize:10.5, color:C.MUTED, marginBottom:3 }}>{m.label}</div>
+              <div style={{ fontSize:13, fontWeight:600, color:C.NAVY }}>{m.value}</div>
             </div>
           ))}
         </div>
@@ -1039,11 +981,11 @@ function ECGResults({ result, C }) {
 
       {/* Clinical summary */}
       {result.findings && (
-        <div style={{ background: C.SURF, borderRadius: 10, padding: '12px 14px', fontSize: 13, color: C.SEC, lineHeight: 1.75 }}>
-          <div style={{ fontSize: 10.5, fontWeight: 700, color: C.MUTED, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Clinical Summary</div>
+        <div style={{ background:C.SURF, borderRadius:10, padding:'12px 14px', fontSize:13, color:C.SEC, lineHeight:1.75 }}>
+          <div style={{ fontSize:10.5, fontWeight:700, color:C.MUTED, textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6 }}>Clinical Summary</div>
           {Array.isArray(result.findings)
-            ? (result.findings[0]?.title || result.findings[0]?.detail || '')
-            : (typeof result.findings === 'string' ? result.findings : '')}
+                    ? (result.findings[0]?.title || result.findings[0]?.detail || '')
+                    : (typeof result.findings === 'string' ? result.findings : '')}
         </div>
       )}
     </div>
@@ -1051,28 +993,26 @@ function ECGResults({ result, C }) {
 }
 
 function EchoResults({ result, C }) {
-  const lvefNum = parseFloat(result.lvef);
-  const lvefColor = isNaN(lvefNum) ? C.MUTED : lvefNum >= 55 ? C.GREEN : lvefNum >= 40 ? C.AMBER : C.RED;
-  const lvefBg = isNaN(lvefNum) ? C.SURF : lvefNum >= 55 ? C.GREEN_P : lvefNum >= 40 ? C.AMBER_P : C.RED_P;
+  const lvefNum   = parseFloat(result.lvef);
+  const lvefColor = isNaN(lvefNum) ? C.MUTED : lvefNum>=55 ? C.GREEN : lvefNum>=40 ? C.AMBER : C.RED;
+  const lvefBg    = isNaN(lvefNum) ? C.SURF  : lvefNum>=55 ? C.GREEN_P : lvefNum>=40 ? C.AMBER_P : C.RED_P;
 
   return (
     <div>
       {/* LVEF hero */}
       {result.lvef && (
-        <div style={{
-          background: lvefBg, border: `1.5px solid ${lvefColor}40`,
-          borderRadius: 12, padding: '14px 18px', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 16
-        }}>
-          <div style={{ textAlign: 'center', flexShrink: 0 }}>
-            <div style={{ fontSize: 34, fontWeight: 800, color: lvefColor, lineHeight: 1 }}>{result.lvef}</div>
-            <div style={{ fontSize: 11, color: C.MUTED, marginTop: 2 }}>LVEF</div>
+        <div style={{ background:lvefBg, border:`1.5px solid ${lvefColor}40`,
+          borderRadius:12, padding:'14px 18px', marginBottom:14, display:'flex', alignItems:'center', gap:16 }}>
+          <div style={{ textAlign:'center', flexShrink:0 }}>
+            <div style={{ fontSize:34, fontWeight:800, color:lvefColor, lineHeight:1 }}>{result.lvef}</div>
+            <div style={{ fontSize:11, color:C.MUTED, marginTop:2 }}>LVEF</div>
           </div>
           <div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: C.NAVY, marginBottom: 3 }}>
-              LV Function: {result.lvFunction || '—'}
+            <div style={{ fontSize:14, fontWeight:700, color:C.NAVY, marginBottom:3 }}>
+              LV Function: {result.lvFunction||'—'}
             </div>
             {result.rvFunction && (
-              <div style={{ fontSize: 12.5, color: C.SEC }}>RV Function: {result.rvFunction}</div>
+              <div style={{ fontSize:12.5, color:C.SEC }}>RV Function: {result.rvFunction}</div>
             )}
           </div>
         </div>
@@ -1080,17 +1020,15 @@ function EchoResults({ result, C }) {
 
       {/* Valvular findings */}
       {result.valvularFindings && Object.keys(result.valvularFindings).length > 0 && (
-        <div style={{ marginBottom: 14 }}>
-          <div style={{ fontSize: 11.5, fontWeight: 700, color: C.MUTED, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Valvular Assessment</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-            {Object.entries(result.valvularFindings).filter(([, v]) => v && v !== 'not assessed').map(([valve, finding]) => (
-              <div key={valve} style={{ background: C.SURF, borderRadius: 9, padding: '9px 12px', border: `1px solid ${C.BORDER}` }}>
-                <div style={{ fontSize: 10.5, color: C.MUTED, textTransform: 'capitalize', marginBottom: 3 }}>{valve} valve</div>
-                <div style={{
-                  fontSize: 12.5, fontWeight: 600,
-                  color: finding.toLowerCase().includes('normal') ? C.GREEN
-                    : finding.toLowerCase().includes('severe') ? C.RED : C.AMBER
-                }}>
+        <div style={{ marginBottom:14 }}>
+          <div style={{ fontSize:11.5, fontWeight:700, color:C.MUTED, textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:8 }}>Valvular Assessment</div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+            {Object.entries(result.valvularFindings).filter(([,v])=>v&&v!=='not assessed').map(([valve,finding])=>(
+              <div key={valve} style={{ background:C.SURF, borderRadius:9, padding:'9px 12px', border:`1px solid ${C.BORDER}` }}>
+                <div style={{ fontSize:10.5, color:C.MUTED, textTransform:'capitalize', marginBottom:3 }}>{valve} valve</div>
+                <div style={{ fontSize:12.5, fontWeight:600,
+                  color: finding.toLowerCase().includes('normal')?C.GREEN
+                       : finding.toLowerCase().includes('severe')?C.RED : C.AMBER }}>
                   {finding}
                 </div>
               </div>
@@ -1101,54 +1039,54 @@ function EchoResults({ result, C }) {
 
       {/* Structural + other metrics */}
       {result.structuralFindings?.length > 0 && (
-        <div style={{ marginBottom: 14 }}>
-          <div style={{ fontSize: 11.5, fontWeight: 700, color: C.MUTED, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Structural Findings</div>
-          {result.structuralFindings.map((f, i) => (
-            <div key={i} style={{ display: 'flex', gap: 8, fontSize: 13, color: C.SEC, padding: '5px 0', borderBottom: `1px solid ${C.BORDER}` }}>
-              <span style={{ color: C.TEAL, flexShrink: 0 }}>•</span>{f}
+        <div style={{ marginBottom:14 }}>
+          <div style={{ fontSize:11.5, fontWeight:700, color:C.MUTED, textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:8 }}>Structural Findings</div>
+          {result.structuralFindings.map((f,i)=>(
+            <div key={i} style={{ display:'flex', gap:8, fontSize:13, color:C.SEC, padding:'5px 0', borderBottom:`1px solid ${C.BORDER}` }}>
+              <span style={{ color:C.TEAL, flexShrink:0 }}>•</span>{f}
             </div>
           ))}
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 14 }}>
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:14 }}>
         {[
-          { label: 'Diastolic Function', value: result.diastolicFunction },
-          { label: 'Wall Motion', value: result.wallMotion },
-          { label: 'Pericardium', value: result.pericardium },
-        ].filter(m => m.value).map(m => (
-          <div key={m.label} style={{ background: C.SURF, borderRadius: 9, padding: '9px 12px', border: `1px solid ${C.BORDER}` }}>
-            <div style={{ fontSize: 10.5, color: C.MUTED, marginBottom: 3 }}>{m.label}</div>
-            <div style={{ fontSize: 12.5, fontWeight: 600, color: C.NAVY }}>{m.value}</div>
+          { label:'Diastolic Function', value:result.diastolicFunction },
+          { label:'Wall Motion',        value:result.wallMotion        },
+          { label:'Pericardium',        value:result.pericardium       },
+        ].filter(m=>m.value).map(m=>(
+          <div key={m.label} style={{ background:C.SURF, borderRadius:9, padding:'9px 12px', border:`1px solid ${C.BORDER}` }}>
+            <div style={{ fontSize:10.5, color:C.MUTED, marginBottom:3 }}>{m.label}</div>
+            <div style={{ fontSize:12.5, fontWeight:600, color:C.NAVY }}>{m.value}</div>
           </div>
         ))}
       </div>
 
       {result.impression && (
-        <div style={{ background: C.SURF, borderRadius: 10, padding: '12px 14px', marginBottom: 12, fontSize: 13, color: C.SEC, lineHeight: 1.75 }}>
-          <div style={{ fontSize: 10.5, fontWeight: 700, color: C.MUTED, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Echocardiographic Impression</div>
+        <div style={{ background:C.SURF, borderRadius:10, padding:'12px 14px', marginBottom:12, fontSize:13, color:C.SEC, lineHeight:1.75 }}>
+          <div style={{ fontSize:10.5, fontWeight:700, color:C.MUTED, textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6 }}>Echocardiographic Impression</div>
           {result.impression}
         </div>
       )}
 
       {result.recommendations?.length > 0 && (
-        <div style={{ background: C.GREEN_P, borderRadius: 10, padding: '12px 14px', marginBottom: 12, border: `1px solid #a5d6a7` }}>
-          <div style={{ fontSize: 10.5, fontWeight: 700, color: C.GREEN, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Recommendations</div>
-          {result.recommendations.map((rec, i) => (
-            <div key={i} style={{ fontSize: 12.5, color: C.SEC, display: 'flex', gap: 8, padding: '3px 0' }}>
-              <span style={{ color: C.GREEN, fontWeight: 700 }}>{i + 1}.</span>{rec}
+        <div style={{ background:C.GREEN_P, borderRadius:10, padding:'12px 14px', marginBottom:12, border:`1px solid #a5d6a7` }}>
+          <div style={{ fontSize:10.5, fontWeight:700, color:C.GREEN, textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:8 }}>Recommendations</div>
+          {result.recommendations.map((rec,i) => (
+            <div key={i} style={{ fontSize:12.5, color:C.SEC, display:'flex', gap:8, padding:'3px 0' }}>
+              <span style={{ color:C.GREEN, fontWeight:700 }}>{i+1}.</span>{rec}
             </div>
           ))}
         </div>
       )}
 
       {result.tasks_assessed?.length > 0 && (
-        <div style={{ fontSize: 11.5, color: C.MUTED, lineHeight: 1.7, marginBottom: 6 }}>
+        <div style={{ fontSize:11.5, color:C.MUTED, lineHeight:1.7, marginBottom:6 }}>
           <strong>PanEcho tasks assessed:</strong> {result.tasks_assessed.join(', ')}
         </div>
       )}
       {result.limitations && (
-        <div style={{ fontSize: 11.5, color: C.MUTED, fontStyle: 'italic' }}>
+        <div style={{ fontSize:11.5, color:C.MUTED, fontStyle:'italic' }}>
           ⚠️ Limitations: {result.limitations}
         </div>
       )}
@@ -1160,15 +1098,15 @@ function EchoResults({ result, C }) {
 export default function DoctorDashboard() {
   const router = useRouter();
 
-  const [mounted, setMounted] = useState(false);
-  const [user, setUser] = useState(null);
-  const [appts, setAppts] = useState([]);
+  const [mounted,  setMounted]  = useState(false);
+  const [user,     setUser]     = useState(null);
+  const [appts,    setAppts]    = useState([]);
   const [patients, setPatients] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [loading,  setLoading]  = useState(true);
 
   // Feature B: Red Flag Alerts
-  const [alerts, setAlerts] = useState([]);
-  const [alertsLoaded, setAlertsLoaded] = useState(false);
+  const [alerts,      setAlerts]      = useState([]);
+  const [alertsLoaded,setAlertsLoaded]= useState(false);
   const [realPatients, setRealPatients] = useState([]);
   const [unreadCounts, setUnreadCounts] = useState({});
 
@@ -1182,19 +1120,19 @@ export default function DoctorDashboard() {
         const d = await r.json();
         setAlerts(d.data || []);
       }
-    } catch { }
+    } catch {}
     setAlertsLoaded(true);
   }, [token]);
 
   async function acknowledgeAlert(alertId) {
     try {
       await fetch(`${API}/cdss/alerts/acknowledge`, {
-        method: 'POST',
+        method:  'POST',
         headers: { Authorization: `Bearer ${token()}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ alertId }),
+        body:    JSON.stringify({ alertId }),
       });
       setAlerts(prev => prev.filter(a => a.id !== alertId));
-    } catch { }
+    } catch {}
   }
 
   useEffect(() => {
@@ -1208,10 +1146,10 @@ export default function DoctorDashboard() {
     const headers = { Authorization: `Bearer ${token()}` };
 
     fetch(`${API}/appointments`, { headers }).then(r => r.json())
-      .then(d => { setAppts(d.data || d.appointments || []); }).catch(() => { }).finally(() => setLoading(false));
+      .then(d => { setAppts(d.data || d.appointments || []); }).catch(() => {}).finally(() => setLoading(false));
 
     fetch(`${API}/patients`, { headers }).then(r => r.json())
-      .then(d => setPatients(d.total || d.data?.length || d.patients?.length || 0)).catch(() => { });
+      .then(d => setPatients(d.total || d.data?.length || d.patients?.length || 0)).catch(() => {});
 
     // Load alerts immediately, then poll every 30s
     fetchAlerts();
@@ -1221,7 +1159,7 @@ export default function DoctorDashboard() {
     fetch(`${API}/doctor-data/patients`, { headers })
       .then(r => r.json())
       .then(d => setRealPatients((d.data || []).slice(0, 6)))
-      .catch(() => { });
+      .catch(() => {});
 
     // Load unread message counts from chat rooms
     fetch(`${API}/chat/rooms?limit=100`, { headers })
@@ -1234,22 +1172,21 @@ export default function DoctorDashboard() {
         }
         setUnreadCounts(counts);
       })
-      .catch(() => { });
+      .catch(() => {});
 
     return () => clearInterval(interval);
   }, []);
 
-  const todayStr = new Date().toDateString();
+  const todayStr  = new Date().toDateString();
   const todayList = appts.filter(a => new Date(a.scheduledAt).toDateString() === todayStr);
-  const upcoming = appts.filter(a => !['CANCELLED', 'COMPLETED'].includes(a.status));
-  const doctor = user?.doctor;
+  const upcoming  = appts.filter(a => !['CANCELLED', 'COMPLETED'].includes(a.status));
+  const doctor    = user?.doctor;
 
   // Build patient panel from real data
   const uColor = u => ({ CRITICAL: RED, HIGH: AMBER, MEDIUM: BLUE, LOW: GREEN }[u] || MUTED);
-  const uBg = u => ({ CRITICAL: RED_P, HIGH: AMBER_P, MEDIUM: BLUE_P, LOW: GREEN_P }[u] || SURFACE);
+  const uBg    = u => ({ CRITICAL: RED_P, HIGH: AMBER_P, MEDIUM: BLUE_P, LOW: GREEN_P }[u] || SURFACE);
 
-  if (!mounted) return null;
-
+  
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', fontFamily: 'DM Sans, sans-serif' }}>
       <Sidebar active="doctorDashboard" />
@@ -1292,10 +1229,10 @@ export default function DoctorDashboard() {
 
           {/* Stat cards */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 24 }}>
-            <StatCard icon="📅" label="TODAY'S APPOINTMENTS" value={todayList.length} sub={`${upcoming.length} upcoming total`} color={BLUE} loading={loading} onClick={() => router.push('/doctor/appointments')} />
-            <StatCard icon="👥" label="TOTAL PATIENTS" value={patients} sub="in your panel" color={TEAL} loading={loading} onClick={() => router.push('/doctor/patients')} />
-            <StatCard icon="✅" label="COMPLETED TODAY" value={todayList.filter(a => a.status === 'COMPLETED').length} sub="consultations" color={GREEN} loading={loading} />
-            <StatCard icon="🚨" label="CRITICAL ALERTS" value={alerts.length} sub="unacknowledged" color={alerts.length > 0 ? RED : GREEN} loading={!alertsLoaded} onClick={alerts.length > 0 ? () => window.scrollTo({ top: 0, behavior: 'smooth' }) : undefined} />
+            <StatCard icon="📅" label="TODAY'S APPOINTMENTS" value={todayList.length} sub={`${upcoming.length} upcoming total`} color={BLUE}  loading={loading} onClick={() => router.push('/doctor/appointments')} />
+            <StatCard icon="👥" label="TOTAL PATIENTS"       value={patients}         sub="in your panel"    color={TEAL}  loading={loading} onClick={() => router.push('/doctor/patients')} />
+            <StatCard icon="✅" label="COMPLETED TODAY"      value={todayList.filter(a => a.status === 'COMPLETED').length} sub="consultations" color={GREEN} loading={loading} />
+            <StatCard icon="🚨" label="CRITICAL ALERTS"      value={alerts.length}    sub="unacknowledged"   color={alerts.length > 0 ? RED : GREEN} loading={!alertsLoaded} onClick={alerts.length > 0 ? () => window.scrollTo({ top: 0, behavior: 'smooth' }) : undefined} />
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
@@ -1345,12 +1282,12 @@ export default function DoctorDashboard() {
                     {loading ? 'Loading patients…' : 'No patients yet. Confirm an appointment to add patients.'}
                   </div>
                 ) : realPatients.map((p, i) => {
-                  const name = `${p.firstName || ''} ${p.lastName || ''}`.trim();
-                  const inits = `${p.firstName?.[0] || ''}${p.lastName?.[0] || ''}`.toUpperCase() || '?';
-                  const conds = (p.conditions || []).map(c => c.condition || c).slice(0, 2).join(', ') || 'No conditions recorded';
-                  const urgency = alerts.some(a => a.patient?.id === p.id || a.patientId === p.id) ? 'HIGH' : 'LOW';
-                  const unread = unreadCounts[p.id] || 0;
-                  const patAlert = alerts.find(a => a.patient?.id === p.id || a.patientId === p.id);
+                  const name    = `${p.firstName||''} ${p.lastName||''}`.trim();
+                  const inits   = `${p.firstName?.[0]||''}${p.lastName?.[0]||''}`.toUpperCase()||'?';
+                  const conds   = (p.conditions||[]).map(c=>c.condition||c).slice(0,2).join(', ') || 'No conditions recorded';
+                  const urgency = alerts.some(a=>a.patient?.id===p.id||a.patientId===p.id) ? 'HIGH' : 'LOW';
+                  const unread  = unreadCounts[p.id] || 0;
+                  const patAlert= alerts.find(a=>a.patient?.id===p.id||a.patientId===p.id);
                   return (
                     <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 0', borderBottom: i < realPatients.length - 1 ? `1px solid ${BORDER}` : 'none', cursor: 'pointer' }}
                       onClick={() => router.push(`/doctor/chat?patientId=${p.id}`)}>
@@ -1376,11 +1313,11 @@ export default function DoctorDashboard() {
           </div>
 
           {/* ── Cardiac AI Diagnostics — Cardiologists only ── */}
-          {(() => {
-            const spec = (doctor?.specialty || '').toLowerCase();
+          {(()=>{
+            const spec = (doctor?.specialty||'').toLowerCase();
             const isCardio = spec.includes('cardio') || spec.includes('cardiac') || spec.includes('heart');
             if (!isCardio) return null;
-            return <ECGEchoTools isDoctor={true} />;
+            return <ECGEchoTools isDoctor={true}/>;
           })()}
 
 
@@ -1392,8 +1329,8 @@ export default function DoctorDashboard() {
               {[
                 { icon: '📈', label: 'Delta-Check', desc: 'Velocity alerts on lab trends', color: BLUE, href: '/doctor/reports' },
                 { icon: '🚨', label: 'Red Flag AI', desc: `${alerts.length} active alert${alerts.length !== 1 ? 's' : ''}`, color: alerts.length > 0 ? RED : GREEN, href: null, action: () => window.scrollTo({ top: 0, behavior: 'smooth' }) },
-                { icon: '🏥', label: 'ABHA/ABDM', desc: 'National health history', color: TEAL, href: '/doctor/patients' },
-                { icon: '🔬', label: 'DDx Engine', desc: 'Differential diagnosis AI', color: PURPLE, href: '/doctor/reports' },
+                { icon: '🏥', label: 'ABHA/ABDM',   desc: 'National health history', color: TEAL, href: '/doctor/patients' },
+                { icon: '🔬', label: 'DDx Engine',  desc: 'Differential diagnosis AI', color: PURPLE, href: '/doctor/reports' },
               ].map(f => (
                 <div key={f.label} onClick={() => f.href ? router.push(f.href) : f.action?.()}
                   style={{ padding: '12px 14px', borderRadius: 10, border: `1px solid ${f.color}30`, background: f.color + '08', cursor: 'pointer', transition: 'all 0.15s' }}>
@@ -1409,5 +1346,3 @@ export default function DoctorDashboard() {
     </div>
   );
 }
-
-
