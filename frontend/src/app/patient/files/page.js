@@ -115,7 +115,7 @@ function Sidebar({ active }) {
         {NAV.map(item => {
           const isActive = item.id === active;
           return (
-            <button key={item.id} onClick={() => router.push(item.href)}
+            <button className="mc-nav-btn" key={item.id} onClick={() => router.push(item.href)}
               style={{ display:'flex', alignItems:'center', gap:10, width:'100%', padding:'9px 12px', margin:'2px 0', borderRadius:8, cursor:'pointer', border:'none', textAlign:'left', background:isActive?BLUE:'transparent', color:isActive?'white':'rgba(255,255,255,0.55)', fontSize:13, fontFamily:'DM Sans, sans-serif', fontWeight:isActive?500:400 }}>
               <span style={{ fontSize:14 }}>{item.icon}</span>
               <span style={{ flex:1 }}>{item.label}</span>
@@ -384,7 +384,7 @@ export default function PatientFilesPage() {
 
   const totalSize = files.reduce((s, f) => s + (f.fileSize || 0), 0);
 
-  if (!mounted) return null;
+  if(!mounted) return <div style={{minHeight:'100vh',background:'#f7f9fc'}}/>;
 
   return (
     <div style={{ display:'flex', height:'100vh', overflow:'hidden', fontFamily:'DM Sans, sans-serif' }}>

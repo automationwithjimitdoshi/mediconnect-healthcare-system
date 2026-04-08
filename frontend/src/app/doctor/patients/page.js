@@ -88,7 +88,7 @@ function Sidebar({ active }) {
           const isA = active===item.id;
           const badge = resolveBadge(item.badge);
           return (
-            <button key={item.id} onClick={()=>router.push(item.href)}
+            <button className="mc-nav-btn" key={item.id} onClick={() => router.push(item.href)}
               style={{display:'flex',alignItems:'center',gap:10,width:'100%',padding:'9px 12px',margin:'2px 0',borderRadius:8,cursor:'pointer',border:'none',textAlign:'left',background:isA?BLUE:'transparent',color:isA?'white':'rgba(255,255,255,0.55)',fontSize:13,fontFamily:'DM Sans, sans-serif',fontWeight:isA?500:400}}>
               <span style={{fontSize:14}}>{item.icon}</span>
               <span style={{flex:1}}>{item.label}</span>

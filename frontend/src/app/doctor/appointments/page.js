@@ -547,14 +547,14 @@ function Sidebar({ active }) {
   }, []);
   const initials = doctorName.split(' ').filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase() || 'DR';
   return (
-    <div style={{ width: 220, background: NAVY, display: 'flex', flexDirection: 'column', flexShrink: 0, overflow: 'hidden' }}>
+    <div className="mc-sidebar" style={{ width: 220, background: NAVY, display: 'flex', flexDirection: 'column', flexShrink: 0, overflow: 'hidden' }}>
       <div style={{ padding: '20px 18px 14px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{ width: 32, height: 32, background: BLUE, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', flexShrink: 0 }}>
             <div style={{ position: 'absolute', width: 14, height: 3, background: 'white', borderRadius: 2 }} />
             <div style={{ position: 'absolute', width: 3, height: 14, background: 'white', borderRadius: 2 }} />
           </div>
-          <div><div style={{ fontSize: 13, fontWeight: 600, color: 'white' }}>MediConnect AI</div><div style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', fontFamily: 'monospace', letterSpacing: '0.1em' }}>DOCTOR PORTAL</div></div>
+          <div><div style={{ fontSize: 13, fontWeight: 600, color: 'white' }}>MediConnect <span className="mc-logo-text">AI</span></div><div className="mc-section-label" style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', fontFamily: 'monospace', letterSpacing: '0.1em' }}>DOCTOR PORTAL</div></div>
         </div>
       </div>
       <div onClick={() => setShowProfile(true)} title="View/Edit Profile"
@@ -567,10 +567,10 @@ function Sidebar({ active }) {
         {DOCTOR_NAV.map(item => {
           const isA = active === item.id;
           return (
-            <button key={item.id} onClick={() => router.push(item.href)}
+            <button className="mc-nav-btn" key={item.id} onClick={() => router.push(item.href)}
               style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '9px 12px', margin: '2px 0', borderRadius: 8, cursor: 'pointer', border: 'none', textAlign: 'left', background: isA ? BLUE : 'transparent', color: isA ? 'white' : 'rgba(255,255,255,0.55)', fontSize: 13, fontFamily: 'DM Sans, sans-serif', fontWeight: isA ? 500 : 400, transition: 'background 0.12s' }}>
-              <span style={{ fontSize: 14 }}>{item.icon}</span>
-              <span style={{ flex: 1 }}>{item.label}</span>
+              <span className="mc-nav-icon" style={{ fontSize: 14 }}>{item.icon}</span>
+              <span className="mc-nav-label" style={{ flex: 1 }}>{item.label}</span>
               {(item.badge != null && item.badge !== 0 && (item.badge === '_chat' ? chatBadge : item.badge === '_alerts' ? alertBadge : item.badge) !== 0) && <span style={{ background: item.badge === 'PREMIUM' ? PURPLE : '#ef4444', color: item.badge === 'PREMIUM' ? '#e9d5ff' : 'white', fontSize: item.badge === 'PREMIUM' ? 8 : 10, fontWeight: 600, padding: item.badge === 'PREMIUM' ? '2px 5px' : '1px 5px', borderRadius: 99 }}>{item.badge === '_chat' ? chatBadge : item.badge === '_alerts' ? alertBadge : item.badge}</span>}
             </button>
           );
@@ -851,7 +851,7 @@ export default function DoctorAppointmentsPage() {
 
   const canAction = (a) => !['CANCELLED', 'COMPLETED', 'NO_SHOW'].includes(a.status);
 
-  if (!mounted) return null;
+  if(!mounted) return <div style={{minHeight:'100vh',background:'#0c1a2e'}}/>;
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', fontFamily: 'DM Sans, sans-serif' }}>

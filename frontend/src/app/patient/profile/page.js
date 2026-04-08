@@ -125,7 +125,7 @@ export default function PatientProfilePage() {
 
   const initials = (patient?.firstName?.[0] || '?') + (patient?.lastName?.[0] || '');
 
-  if (!mounted) return null;
+  if(!mounted) return <div style={{minHeight:'100vh',background:'#f7f9fc'}}/>;
 
   return (
     <AppLayout role="patient">

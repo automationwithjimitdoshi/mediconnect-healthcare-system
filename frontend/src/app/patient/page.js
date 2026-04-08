@@ -94,7 +94,7 @@ function Sidebar({ active }) {
       <div style={{ padding:'10px 18px 4px', fontSize:9, color:'rgba(255,255,255,0.25)', fontFamily:'monospace', letterSpacing:'0.12em' }}>MY HEALTH</div>
       <div style={{ padding:'0 8px', flex:1 }}>
         {NAV.map(item => { const isA = active===item.id; return (
-          <button key={item.id} onClick={() => router.push(item.href)}
+          <button className="mc-nav-btn" key={item.id} onClick={() => router.push(item.href)}
             style={{ display:'flex', alignItems:'center', gap:10, width:'100%', padding:'9px 12px', margin:'2px 0', borderRadius:8, cursor:'pointer', border:'none', textAlign:'left', background:isA?BLUE:'transparent', color:isA?'white':'rgba(255,255,255,0.55)', fontSize:13, fontFamily:'DM Sans, sans-serif', fontWeight:isA?500:400 }}>
             <span style={{ fontSize:14 }}>{item.icon}</span>
             <span style={{ flex:1 }}>{item.label}</span>
@@ -702,7 +702,7 @@ export default function PatientDashboard() {
     ? allAppts.filter(a => ['SCHEDULED','CONFIRMED','RESCHEDULED'].includes(a.status))
     : allAppts.filter(a => ['COMPLETED','CANCELLED','NO_SHOW'].includes(a.status));
 
-  if (!mounted) return null;
+  if(!mounted) return <div style={{minHeight:'100vh',background:'#f7f9fc'}}/>;
 
   return (
     <div style={{ display:'flex', height:'100vh', overflow:'hidden', fontFamily:'DM Sans, sans-serif' }}>

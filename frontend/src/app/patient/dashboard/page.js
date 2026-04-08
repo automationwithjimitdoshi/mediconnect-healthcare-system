@@ -44,7 +44,7 @@ export default function PatientDashboard() {
 
   const patientName = user?.patient?.firstName || user?.firstName || user?.name || 'there';
 
-  if (!mounted) return null;
+  if(!mounted) return <div style={{minHeight:'100vh',background:'#f7f9fc'}}/>;
 
   return (
     <AppLayout role="patient">

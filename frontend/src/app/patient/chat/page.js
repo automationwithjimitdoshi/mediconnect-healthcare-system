@@ -140,10 +140,10 @@ function Sidebar({ active }) {
         {NAV.map(item => {
           const isA = active === item.id;
           return (
-            <button key={item.id} onClick={() => router.push(item.href)}
+            <button className="mc-nav-btn" key={item.id} onClick={() => router.push(item.href)}
               style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '9px 12px', margin: '2px 0', borderRadius: 8, cursor: 'pointer', border: 'none', textAlign: 'left', background: isA ? BLUE : 'transparent', color: isA ? 'white' : 'rgba(255,255,255,0.55)', fontSize: 13, fontFamily: 'DM Sans, sans-serif', fontWeight: isA ? 500 : 400 }}>
-              <span style={{ fontSize: 14 }}>{item.icon}</span>
-              <span style={{ flex: 1 }}>{item.label}</span>
+              <span className="mc-nav-icon" style={{ fontSize: 14 }}>{item.icon}</span>
+              <span className="mc-nav-label" style={{ flex: 1 }}>{item.label}</span>
               {(item.badge != null && (item.badge === '_chat' ? chatBadge : item.badge) !== 0) && (
                 <span style={{ background: item.badge === 'FREE' ? '#0e7490' : '#ef4444', color: 'white', fontSize: item.badge === 'FREE' ? 9 : 10, fontWeight: 600, padding: item.badge === 'FREE' ? '2px 6px' : '1px 5px', borderRadius: 99 }}>
                   {item.badge === '_chat' ? chatBadge : item.badge}
