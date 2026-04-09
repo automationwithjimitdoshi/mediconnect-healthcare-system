@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { saveSession, getToken, getUser, clearSession } from '@/lib/auth';
+import PatientSidebar from '@/components/PatientSidebar';
 
 const NAVY = '#0c1a2e', BLUE = '#1565c0', BLUE_P = '#e3f0ff', RED = '#c62828', RED_P = '#fdecea',
   AMBER = '#b45309', AMBER_P = '#fff3e0', GREEN = '#1b5e20', GREEN_P = '#e8f5e9',

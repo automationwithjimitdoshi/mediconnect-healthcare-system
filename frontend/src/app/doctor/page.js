@@ -13,6 +13,7 @@ export const fetchCache = 'force-no-store';
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { saveSession, getToken, getUser, clearSession } from '@/lib/auth';
+import DoctorSidebar from '@/components/DoctorSidebar';
 
 const NAVY    = '#0c1a2e';
 const BLUE    = '#1565c0';
