@@ -170,11 +170,20 @@ body {
   font-family: 'DM Sans', sans-serif;
 }
 
-/* ── 4. SIDEBAR — desktop default (icon-only, hover to expand) ──────────────── */
+/* ═══════════════════════════════════════════════════════════════════════════
+   SIDEBAR SYSTEM — Three states
+   • Desktop (≥1024px) : 60px collapsed → 220px on hover (JS + CSS both)
+   • Tablet  (640-1023): 60px fixed, no expand
+   • Mobile  (<640px)  : hidden, bottom nav shown instead
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── 4. Base sidebar ─────────────────────────────────────────────────────── */
 .mc-sidebar {
-  width: 60px;
-  min-width: 60px;
-  max-width: 60px;
+  --sb-w: 60px;                   /* collapsed width */
+  --sb-expanded-w: 220px;         /* expanded width */
+  width: var(--sb-w);
+  min-width: var(--sb-w);
+  max-width: var(--sb-w);
   height: 100vh;
   background: #0c1a2e;
   display: flex;
@@ -183,127 +192,122 @@ body {
   overflow: hidden;
   position: relative;
   z-index: 50;
-  transition:
-    width     0.22s cubic-bezier(0.4, 0, 0.2, 1),
-    min-width 0.22s cubic-bezier(0.4, 0, 0.2, 1),
-    max-width 0.22s cubic-bezier(0.4, 0, 0.2, 1);
-  will-change: width;
+  transition: width 0.2s ease, min-width 0.2s ease, max-width 0.2s ease;
 }
 
-/* Desktop hover — expand to full width */
-@media (hover: hover) and (min-width: 1024px) {
-  .mc-sidebar:hover {
-    width: 220px;
-    min-width: 220px;
-    max-width: 220px;
-  }
-}
-
-/* JS fallback — sidebar with data-expanded="true" always expands (set via onMouseEnter/Leave) */
+/* Desktop: expand on CSS hover AND JS data-expanded (double coverage) */
 @media (min-width: 1024px) {
+  .mc-sidebar:hover,
   .mc-sidebar[data-expanded="true"] {
-    width: 220px !important;
-    min-width: 220px !important;
-    max-width: 220px !important;
+    width: var(--sb-expanded-w) !important;
+    min-width: var(--sb-expanded-w) !important;
+    max-width: var(--sb-expanded-w) !important;
   }
 }
 
-/* Tablet — slightly narrower icon bar, no hover expand */
+/* Tablet: fixed narrow bar, no expand at all */
 @media (min-width: 640px) and (max-width: 1023px) {
   .mc-sidebar {
-    width: 52px;
-    min-width: 52px;
-    max-width: 52px;
+    --sb-w: 56px;
+    width: 56px;
+    min-width: 56px;
+    max-width: 56px;
   }
   body {
-    background-image: linear-gradient(90deg, #0c1a2e 52px, #f7f9fc 52px) !important;
+    background-image: linear-gradient(90deg, #0c1a2e 56px, #f7f9fc 56px) !important;
   }
 }
 
-/* Mobile — sidebar hidden entirely, replaced by bottom nav */
+/* Mobile: hide sidebar entirely */
 @media (max-width: 639px) {
-  .mc-sidebar {
-    display: none !important;
+  .mc-sidebar { display: none !important; }
+}
+
+/* ── 5. Nav icons — always visible, always perfectly centred ─────────────── */
+/* KEY FIX: explicit size + flex centering so icon never shifts position      */
+.mc-nav-icon {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 32px !important;
+  min-width: 32px !important;
+  height: 32px !important;
+  font-size: 18px !important;
+  line-height: 1 !important;
+  flex-shrink: 0 !important;
+  /* Never hidden, never clipped */
+  opacity: 1 !important;
+  overflow: visible !important;
+}
+
+/* ── 6. Nav buttons — centred when collapsed, left-aligned when expanded ─── */
+.mc-nav-btn {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;  /* icon centred in 60px */
+  gap: 0 !important;
+  width: 100% !important;
+  min-height: 44px !important;
+  padding: 6px 0 !important;
+  border: none !important;
+  border-radius: 8px !important;
+  cursor: pointer !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  /* Color/background transitions only — NOT width/position */
+  transition: background 0.15s ease, color 0.15s ease !important;
+}
+
+/* Expanded state: left-align with padding and gap */
+@media (min-width: 1024px) {
+  .mc-sidebar:hover .mc-nav-btn,
+  .mc-sidebar[data-expanded="true"] .mc-nav-btn {
+    justify-content: flex-start !important;
+    padding: 8px 12px !important;
+    gap: 10px !important;
   }
 }
 
-/* ── 5. Text labels — hidden when collapsed, shown on hover (desktop only) ──── */
+/* ── 7. Text labels — hidden when collapsed ─────────────────────────────── */
+/* Uses clip + opacity. Does NOT use width/max-width to avoid layout shift.   */
 .mc-nav-label,
 .mc-logo-text,
 .mc-user-info,
 .mc-signout-text {
   opacity: 0;
-  max-width: 0;
-  overflow: hidden;
+  /* clip-path hides text without affecting layout flow */
+  clip-path: inset(0 100% 0 0);
   white-space: nowrap;
+  overflow: hidden;
   pointer-events: none;
-  transition: opacity 0.15s ease 0.05s, max-width 0.15s ease 0.05s;
-  flex-shrink: 0;
+  flex: 1;
+  min-width: 0;
+  transition: opacity 0.18s ease 0.04s, clip-path 0.18s ease 0.04s;
 }
-/* Only reveal on hover for devices that support hover (desktop) */
-@media (hover: hover) and (min-width: 1024px) {
+
+/* Reveal labels when sidebar is expanded */
+@media (min-width: 1024px) {
   .mc-sidebar:hover .mc-nav-label,
   .mc-sidebar:hover .mc-logo-text,
   .mc-sidebar:hover .mc-user-info,
-  .mc-sidebar:hover .mc-signout-text {
-    opacity: 1;
-    max-width: 200px;
-    pointer-events: auto;
-  }
-}
-/* JS fallback for browsers where hover:hover is unreliable */
-@media (min-width: 1024px) {
+  .mc-sidebar:hover .mc-signout-text,
   .mc-sidebar[data-expanded="true"] .mc-nav-label,
   .mc-sidebar[data-expanded="true"] .mc-logo-text,
   .mc-sidebar[data-expanded="true"] .mc-user-info,
   .mc-sidebar[data-expanded="true"] .mc-signout-text {
     opacity: 1;
-    max-width: 200px;
+    clip-path: inset(0 0% 0 0);
     pointer-events: auto;
   }
-  .mc-sidebar[data-expanded="true"] .mc-nav-btn {
-    justify-content: flex-start !important;
-    padding: 9px 10px !important;
-    gap: 10px !important;
-  }
 }
 
-/* ── 6. Icons — always visible, always centred ──────────────────────────────── */
-.mc-nav-icon {
-  flex-shrink: 0;
-  width: 28px;
-  min-width: 28px;
-  height: 28px;
-  text-align: center;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 17px;
-  line-height: 1;
-}
-
-/* ── 7. Nav buttons — icon perfectly centred when collapsed ─────────────────── */
-.mc-nav-btn {
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  gap: 0 !important;               /* no gap when collapsed — labels have width 0 */
-  width: 100% !important;
-  white-space: nowrap !important;
-  padding: 9px 0 !important;
-  border: none !important;
-  background: transparent !important;
-  cursor: pointer !important;
-  border-radius: 8px !important;
-  transition: background 0.15s, color 0.15s !important;
-  min-height: 40px !important;
-}
-/* When sidebar is hovered on desktop — restore gap and left-align */
-@media (hover: hover) and (min-width: 1024px) {
-  .mc-sidebar:hover .mc-nav-btn {
-    justify-content: flex-start !important;
-    padding: 9px 10px !important;
-    gap: 10px !important;
+/* Tablet: labels always hidden (no expansion) */
+@media (min-width: 640px) and (max-width: 1023px) {
+  .mc-nav-label,
+  .mc-logo-text,
+  .mc-user-info,
+  .mc-signout-text {
+    display: none !important;
   }
 }
 

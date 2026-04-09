@@ -568,8 +568,8 @@ function Sidebar({ active }) {
         {/* Section divider — always visible */}
         <div style={{ padding: '10px 0 4px', fontSize: 9, color: 'rgba(255,255,255,0.25)', fontFamily: 'monospace', letterSpacing: '0.12em', textAlign: 'center', flexShrink: 0 }}>· · ·</div>
 
-        {/* Nav items — flex:1 + overflowY:auto ensures sign out is always visible */}
-        <div style={{ padding: '0 6px', flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
+        {/* Nav items — no side padding so icons centre cleanly in 60px */}
+        <div style={{ padding: '2px 4px', flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
           {DOCTOR_NAV.map(item => {
             const isA = active === item.id;
             const badgeVal = getBadgeValue(item);
@@ -579,15 +579,18 @@ function Sidebar({ active }) {
                 key={item.id}
                 onClick={() => router.push(item.href)}
                 style={{
-                  margin: '2px 0', borderRadius: 8,
+                  margin: '1px 0',
+                  borderRadius: 8,
                   background: isA ? BLUE : 'transparent',
-                  color: isA ? 'white' : 'rgba(255,255,255,0.6)',
-                  fontSize: 13, fontFamily: 'DM Sans, sans-serif',
-                  fontWeight: isA ? 600 : 400, transition: 'background 0.12s',
+                  color: isA ? 'white' : 'rgba(255,255,255,0.65)',
+                  fontSize: 13,
+                  fontFamily: 'DM Sans, sans-serif',
+                  fontWeight: isA ? 600 : 400,
+                  transition: 'background 0.12s',
                 }}
               >
                 <span className="mc-nav-icon">{item.icon}</span>
-                <span className="mc-nav-label" style={{ flex: 1, textAlign: 'left' }}>{item.label}</span>
+                <span className="mc-nav-label" style={{ textAlign: 'left' }}>{item.label}</span>
                 {item.badge != null && badgeVal !== 0 && (
                   <span className="mc-nav-label" style={{
                     background: item.badge === 'PREMIUM' ? PURPLE : '#ef4444',
@@ -595,7 +598,7 @@ function Sidebar({ active }) {
                     fontSize: item.badge === 'PREMIUM' ? 8 : 10,
                     fontWeight: 700,
                     padding: item.badge === 'PREMIUM' ? '2px 5px' : '1px 5px',
-                    borderRadius: 99, flexShrink: 0,
+                    borderRadius: 99, flexShrink: 0, flex: 'none',
                   }}>
                     {badgeVal}
                   </span>

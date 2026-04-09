@@ -1,7 +1,7 @@
 import './globals.css';
 
 export const metadata = {
-  title:       'NexMedicon AI',
+  title: 'NexMedicon AI',
   description: 'AI-powered healthcare platform by NexMedicon',
 };
 
@@ -16,18 +16,12 @@ export default function RootLayout({ children }) {
           rel="stylesheet"
         />
       </head>
-      {/*
-        body background matches collapsed sidebar width (60px navy) + content area.
-        This prevents any white flash while React hydrates.
-      */}
       <body style={{
-        background:      '#f7f9fc',
+        background: '#f7f9fc',
         backgroundImage: 'linear-gradient(90deg, #0c1a2e 60px, #f7f9fc 60px)',
-        margin:          0,
+        margin: 0,
       }}>
-        <div id="__mc_page">
-          {children}
-        </div>
+        <div id="__mc_page">{children}</div>
       </body>
     </html>
   );

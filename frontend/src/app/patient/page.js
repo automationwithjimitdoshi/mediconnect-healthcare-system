@@ -128,8 +128,8 @@ function Sidebar({ active }) {
         {/* Section divider */}
         <div style={{ height: 1, background: 'rgba(255,255,255,0.06)', margin: '4px 8px 4px' }} />
 
-        {/* Nav items — scrollable, sign out always below */}
-        <div style={{ padding: '0 6px', flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
+        {/* Nav items — no horizontal padding so icons centre cleanly in 60px */}
+        <div style={{ padding: '2px 4px', flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
           {NAV.map(item => {
             const isA = active === item.id;
             return (
@@ -138,20 +138,23 @@ function Sidebar({ active }) {
                 key={item.id}
                 onClick={() => router.push(item.href)}
                 style={{
-                  margin: '1px 0', borderRadius: 8,
+                  margin: '1px 0',
+                  borderRadius: 8,
                   background: isA ? BLUE : 'transparent',
-                  color: isA ? 'white' : 'rgba(255,255,255,0.6)',
-                  fontSize: 13, fontFamily: 'DM Sans, sans-serif',
+                  color: isA ? 'white' : 'rgba(255,255,255,0.65)',
+                  fontSize: 13,
+                  fontFamily: 'DM Sans, sans-serif',
                   fontWeight: isA ? 600 : 400,
                 }}
               >
                 <span className="mc-nav-icon">{item.icon}</span>
-                <span className="mc-nav-label" style={{ flex: 1, textAlign: 'left' }}>{item.label}</span>
+                <span className="mc-nav-label" style={{ textAlign: 'left' }}>{item.label}</span>
                 {item.badge != null && (item.badge === '_chat' ? chatBadge > 0 : item.badge !== 0) && (
                   <span className="mc-nav-label" style={{
                     background: item.badge === 'FREE' ? '#0e7490' : '#ef4444',
                     color: 'white', fontSize: item.badge === 'FREE' ? 9 : 10,
-                    fontWeight: 700, padding: '2px 6px', borderRadius: 99, flexShrink: 0,
+                    fontWeight: 700, padding: '2px 6px', borderRadius: 99,
+                    flexShrink: 0, flex: 'none',
                   }}>
                     {item.badge === '_chat' ? chatBadge : item.badge}
                   </span>

@@ -33,6 +33,14 @@ function LoginLandingPageInner() {
     if (typeof window !== 'undefined' && window.location.hash === '#forgot') setShowForgot(true);
     const pre = params?.get('email');
     if (pre) setFpEmail(pre);
+
+    // Auto-redirect if already logged in
+    try {
+      const tok  = localStorage.getItem('mc_token');
+      const user = JSON.parse(localStorage.getItem('mc_user') || '{}');
+      if (tok && user?.role === 'PATIENT') { window.location.href = '/patient'; return; }
+      if (tok && user?.role === 'DOCTOR')  { window.location.href = '/doctor';  return; }
+    } catch {}
   }, []);
 
   // ── Forgot password steps ────────────────────────────────────────────────
@@ -118,56 +126,103 @@ function LoginLandingPageInner() {
       <div style={{width:'100%',maxWidth:440}}>
 
         <div style={{textAlign:'center',marginBottom:36}}>
-          <div style={{fontSize:40,marginBottom:10}}>⚕️</div>
-          <div style={{fontSize:28,fontWeight:700,color:'white',letterSpacing:'-0.5px'}}>MediConnect AI</div>
-          <div style={{fontSize:14,color:'rgba(255,255,255,0.55)',marginTop:6}}>Healthcare Intelligence Platform</div>
+          {/* NexMedicon AI SVG Logo — no external file needed */}
+          <div style={{
+            width: 72, height: 72, borderRadius: 18,
+            background: 'linear-gradient(135deg, #00796b 0%, #1565c0 100%)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            margin: '0 auto 16px',
+            boxShadow: '0 8px 28px rgba(0,0,0,0.35)',
+          }}>
+            <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="16" y="4" width="8" height="32" rx="3" fill="white" fillOpacity="0.95"/>
+              <rect x="4" y="16" width="32" height="8" rx="3" fill="white" fillOpacity="0.95"/>
+              <path d="M4 20 L10 20 L13 14 L17 26 L21 18 L24 22 L27 20 L36 20"
+                stroke="white" strokeWidth="1.5" strokeOpacity="0.35"
+                strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+            </svg>
+          </div>
+          <div style={{fontSize:30,fontWeight:800,color:'white',letterSpacing:'-0.5px',lineHeight:1.1}}>NexMedicon AI</div>
+          <div style={{fontSize:14,color:'rgba(255,255,255,0.5)',marginTop:7,letterSpacing:'0.02em'}}>AI-Powered Healthcare Intelligence Platform</div>
         </div>
 
         <div style={{fontSize:15,fontWeight:600,color:'rgba(255,255,255,0.7)',textAlign:'center',marginBottom:20}}>
           Who are you signing in as?
         </div>
 
-        <div style={{display:'flex',flexDirection:'column',gap:14}}>
+        {/*
+          Responsive cards:
+          ≥ 480px → side by side (grid 1fr 1fr)
+          < 480px → stacked (grid 1fr)
+          Both work identically on web and Android WebView
+        */}
+        <style>{`
+          .nx-login-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+          }
+          @media (max-width: 479px) {
+            .nx-login-grid { grid-template-columns: 1fr; }
+          }
+          .nx-login-card {
+            background: white;
+            border: 2px solid transparent;
+            border-radius: 16px;
+            padding: 22px 20px;
+            cursor: pointer;
+            text-align: left;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+            font-family: DM Sans, sans-serif;
+            width: 100%;
+          }
+          .nx-login-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.22);
+          }
+          .nx-login-card.patient:hover { border-color: #00796b; }
+          .nx-login-card.doctor:hover  { border-color: #1565c0; }
+          .nx-login-card:active { transform: scale(0.98); }
+        `}</style>
+
+        <div className="nx-login-grid">
 
           {/* Patient login card */}
-          <button onClick={()=>router.push('/patient/login')}
-            style={{background:'white',border:'none',borderRadius:16,padding:'22px 24px',
-              cursor:'pointer',textAlign:'left',display:'flex',alignItems:'center',gap:16,
-              boxShadow:'0 4px 20px rgba(0,0,0,0.15)',transition:'transform 0.1s'}}>
-            <div style={{width:52,height:52,borderRadius:14,background:TEAL_P,
+          <button className="nx-login-card patient" onClick={() => router.push('/patient/login')}>
+            <div style={{width:50,height:50,borderRadius:14,background:TEAL_P,
               display:'flex',alignItems:'center',justifyContent:'center',fontSize:26,flexShrink:0}}>
               🏥
             </div>
-            <div style={{flex:1}}>
-              <div style={{fontSize:17,fontWeight:700,color:NAVY}}>I'm a Patient</div>
-              <div style={{fontSize:13,color:MUTED,marginTop:3}}>
-                Access appointments, chat with your doctor, analyze reports
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:16,fontWeight:700,color:NAVY,marginBottom:3}}>Patient</div>
+              <div style={{fontSize:12,color:MUTED,lineHeight:1.5}}>
+                Appointments, chat &amp; reports
               </div>
             </div>
-            <div style={{fontSize:20,color:MUTED}}>→</div>
           </button>
 
           {/* Doctor login card */}
-          <button onClick={()=>router.push('/doctor/login')}
-            style={{background:'white',border:'none',borderRadius:16,padding:'22px 24px',
-              cursor:'pointer',textAlign:'left',display:'flex',alignItems:'center',gap:16,
-              boxShadow:'0 4px 20px rgba(0,0,0,0.15)'}}>
-            <div style={{width:52,height:52,borderRadius:14,background:BLUE_P,
+          <button className="nx-login-card doctor" onClick={() => router.push('/doctor/login')}>
+            <div style={{width:50,height:50,borderRadius:14,background:BLUE_P,
               display:'flex',alignItems:'center',justifyContent:'center',fontSize:26,flexShrink:0}}>
               🩺
             </div>
-            <div style={{flex:1}}>
-              <div style={{fontSize:17,fontWeight:700,color:NAVY}}>I'm a Doctor</div>
-              <div style={{fontSize:13,color:MUTED,marginTop:3}}>
-                Manage appointments, review reports, clinical dashboard
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:16,fontWeight:700,color:NAVY,marginBottom:3}}>Doctor</div>
+              <div style={{fontSize:12,color:MUTED,lineHeight:1.5}}>
+                Dashboard &amp; clinical tools
               </div>
             </div>
-            <div style={{fontSize:20,color:MUTED}}>→</div>
           </button>
+
         </div>
 
         <div style={{textAlign:'center',marginTop:24,fontSize:13,color:'rgba(255,255,255,0.5)'}}>
-          New here?{' '}
+          New to NexMedicon?{' '}
           <button onClick={()=>router.push('/register')}
             style={{background:'none',border:'none',color:'rgba(255,255,255,0.8)',
               cursor:'pointer',fontSize:13,fontWeight:600,textDecoration:'underline'}}>
@@ -186,4 +241,3 @@ export default function LoginLandingPage() {
     </Suspense>
   );
 }
-
