@@ -7,6 +7,7 @@ export const fetchCache = 'force-no-store';
  */
 import { useState, Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { saveSession } from '@/lib/auth';
 
 const API   = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 const NAVY  = '#0c1a2e';
@@ -57,8 +58,7 @@ function PatientLoginPageInner() {
         return;
       }
       const p = user.patient || {};
-      localStorage.setItem('mc_token', token);
-      localStorage.setItem('mc_user', JSON.stringify({
+      saveSession(token, {
         id:        user.id,
         userId:    user.id,
         email:     user.email,
@@ -68,9 +68,7 @@ function PatientLoginPageInner() {
         phone:     p.phone     || '',
         photoUrl:  p.photoUrl  || null,
         patient:   user.patient || null,
-      }));
-      // ✅ FIX: hard navigate instead of router.push so login page
-      //         never re-renders and causes the blink
+      });
       window.location.href = '/patient';
     } catch {
       setErr('Cannot connect to the server. Make sure the backend is running.');

@@ -8,6 +8,7 @@ export const fetchCache = 'force-no-store';
  */
 import { useState, Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { getToken, getUser } from '@/lib/auth';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 const NAVY = '#0c1a2e', BLUE = '#1565c0', BLUE_P = '#e3f0ff';
@@ -34,10 +35,10 @@ function LoginLandingPageInner() {
     const pre = params?.get('email');
     if (pre) setFpEmail(pre);
 
-    // Auto-redirect if already logged in
+    // Auto-redirect if already logged in (tab-isolated check)
     try {
-      const tok  = localStorage.getItem('mc_token');
-      const user = JSON.parse(localStorage.getItem('mc_user') || '{}');
+      const tok  = getToken();
+      const user = getUser();
       if (tok && user?.role === 'PATIENT') { window.location.href = '/patient'; return; }
       if (tok && user?.role === 'DOCTOR')  { window.location.href = '/doctor';  return; }
     } catch {}

@@ -132,13 +132,13 @@ function parseDoctorBio(bio) {
 
 async function dispatchOTP(email, otp, phone) {
   console.log(`\n[AUTH OTP] ${email} → ${otp}  (10 min TTL)\n`);
-  const msg = `MediConnect: Your OTP is ${otp}. Valid 10 minutes. Do not share.`;
+  const msg = `NexMedicon: Your OTP is ${otp}. Valid 10 minutes. Do not share.`;
   if (phone) { const s = getSMS(); if (s) try { await s(phone, msg); } catch (e) { console.warn('[AUTH] SMS error:', e.message); } }
   const em = getEmail();
   if (em) {
     try {
-      await em(email, 'MediConnect — Password Reset OTP',
-        `<h2 style="color:#2563EB">Password Reset</h2><p>Your OTP:</p><h1 style="letter-spacing:8px;font-size:36px;color:#2563EB">${otp}</h1><p>Valid for 10 minutes. Do not share this with anyone.</p>`);
+      await em(email, 'NexMedicon — Password Reset OTP',
+        `<h2 style="color:#00796b">NexMedicon AI — Password Reset</h2><p>Your OTP:</p><h1 style="letter-spacing:8px;font-size:36px;color:#1565c0">${otp}</h1><p>Valid for 10 minutes. Do not share this with anyone.</p>`);
     } catch (e) { console.warn('[AUTH] Email error:', e.message); }
   }
 }
@@ -184,17 +184,17 @@ router.post('/register', [
       if (pPhone || dPhone) return res.status(400).json({ error: 'PHONE_TAKEN' });
     }
 
-    // ── Generate @mediconnect.ai credentials for doctors ──────────────────
+    // ── Generate @nexmedicon.ai credentials for doctors ──────────────────
     let appEmail = emailLower;
     let appEmailNote = null;
     if (role === 'DOCTOR') {
-      // Generate: first initial + last name, e.g. "dsharma@mediconnect.ai"
+      // Generate: first initial + last name, e.g. "dsharma@nexmedicon.ai"
       const base = (firstName[0] + lastName).toLowerCase().replace(/[^a-z0-9]/g, '');
-      let candidate = `${base}@mediconnect.ai`;
+      let candidate = `${base}@nexmedicon.ai`;
       // Check for conflicts and append numbers if needed
       let suffix = 1;
       while (await prisma.user.findUnique({ where: { email: candidate } })) {
-        candidate = `${base}${suffix}@mediconnect.ai`;
+        candidate = `${base}${suffix}@nexmedicon.ai`;
         suffix++;
       }
       appEmail = candidate;
@@ -234,7 +234,7 @@ router.post('/register', [
       if (mrnExists) {
         return res.status(400).json({
           error: 'MRN_TAKEN',
-          message: 'This Medical Registration Number is already registered on MediConnect AI.',
+          message: 'This Medical Registration Number is already registered on NexMedicon AI.',
         });
       }
 
@@ -261,7 +261,7 @@ router.post('/register', [
             firstName:     firstName.trim(), lastName: lastName.trim(), phone: phone.trim(),
             specialty:     (specialty || 'General Practice').trim(),
             qualification: (qualification || '').trim(),
-            hospital:      (hospital || 'MediConnect Clinic').trim(),
+            hospital:      (hospital || 'NexMedicon Clinic').trim(),
             consultFee:    consultFee ? Math.round(parseFloat(consultFee) * 100) : 50000,
             // isAvailable = false for PENDING doctors (not shown to patients)
             isAvailable:   verificationStatus === 'APPROVED',
@@ -339,7 +339,7 @@ router.post('/login', [
     });
 
     // If not found by appEmail, try looking up doctor by their original registration email
-    // Doctors may not remember their generated @mediconnect.ai email
+    // Doctors may not remember their generated @nexmedicon.ai email
     if (!user) {
       const doctor = await prisma.doctor.findFirst({
         where: { bio: { contains: `__originalEmail__${emailLow}` } },
@@ -365,11 +365,11 @@ router.post('/login', [
         if (bioData.status === 'REJECTED') {
           return res.status(403).json({
             error: 'ACCOUNT_REJECTED',
-            message: 'Your registration was not approved. Reason: ' + (bioData.rejectReason || 'credentials could not be verified') + '. Please contact support@mediconnect.ai.',
+            message: 'Your registration was not approved. Reason: ' + (bioData.rejectReason || 'credentials could not be verified') + '. Please contact support@nexmedicon.ai.',
           });
         }
       }
-      return res.status(401).json({ error: 'This account has been deactivated. Contact support@mediconnect.ai.' });
+      return res.status(401).json({ error: 'This account has been deactivated. Contact support@nexmedicon.ai.' });
     }
     if (!user.passwordHash) return res.status(401).json({ error: 'Invalid credentials' });
 
@@ -473,7 +473,7 @@ router.post('/forgot-username', async (req, res) => {
     if (!found) return res.json({ message: 'If this phone is registered, your email has been sent via SMS.', maskedEmail: '' });
 
     const email = found.user.email;
-    const sms   = `MediConnect: Your registered login email is ${email}. Use it to sign in.`;
+    const sms   = `NexMedicon: Your registered login email is ${email}. Use it to sign in.`;
     console.log(`\n[AUTH] forgot-username → ${email} for phone ${ph}\n`);
     const sendSMS = getSMS();
     if (sendSMS) try { await sendSMS(ph, sms); } catch (e) { console.warn('[AUTH] SMS error:', e.message); }
@@ -496,7 +496,7 @@ router.post('/send-report-sms', authenticate, async (req, res) => {
 
     const abnormal = (findings || []).filter(f => f.severity === 'critical' || f.severity === 'warning');
 
-    let msg = `MediConnect Report\n`;
+    let msg = `NexMedicon Report\n`;
     if (patientName) msg += `Patient: ${patientName}\n`;
     msg += `File: ${(fileName || 'Report').slice(0, 40)}\n`;
     if (reportType)  msg += `Test: ${reportType}\n`;
@@ -509,7 +509,7 @@ router.post('/send-report-sms', authenticate, async (req, res) => {
     } else {
       msg += `✅ All values within normal range.\n`;
     }
-    msg += `\nFor full analysis, open MediConnect app. Consult your doctor — not a diagnosis.`;
+    msg += `\nFor full analysis, open NexMedicon app. Consult your doctor — not a diagnosis.`;
 
     console.log(`[AUTH] send-report-sms to ${phone}:\n${msg}`);
 

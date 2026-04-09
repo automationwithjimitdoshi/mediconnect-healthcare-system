@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { saveSession, getToken, getUser, clearSession } from '@/lib/auth';
 
 const NAVY = '#0c1a2e', BLUE = '#1565c0', BLUE_P = '#e3f0ff', RED = '#c62828', RED_P = '#fdecea',
   AMBER = '#b45309', AMBER_P = '#fff3e0', GREEN = '#1b5e20', GREEN_P = '#e8f5e9',
@@ -62,7 +63,7 @@ function Sidebar({ active }) {
   const [moreOpen, setMoreOpen] = useState(false);
 
   useEffect(() => {
-    const tok = localStorage.getItem('mc_token') || '';
+    const tok = getToken();
     if (!tok) return;
     fetch(`${API}/chat/rooms?limit=100`, { headers: { Authorization: `Bearer ${tok}` } })
       .then(r => r.ok ? r.json() : null)
@@ -74,7 +75,7 @@ function Sidebar({ active }) {
 
   useEffect(() => {
     try {
-      const u = JSON.parse(localStorage.getItem('mc_user') || '{}');
+      const u = getUser();
       const n = u?.patient
         ? `${u.patient.firstName || ''} ${u.patient.lastName || ''}`.trim()
         : (u?.email || 'Patient');
@@ -84,8 +85,7 @@ function Sidebar({ active }) {
   }, []);
 
   function signOut() {
-    localStorage.removeItem('mc_token');
-    localStorage.removeItem('mc_user');
+    clearSession();
     window.location.href = '/login';
   }
 
@@ -307,7 +307,7 @@ const ECHO_TASKS = [
 
 // Sends file to backend proxy — backend calls Anthropic/OpenAI (avoids CORS)
 async function runCardiacAnalysis(imageBase64, mimeType, mode) {
-  const tok = localStorage.getItem('mc_token') || '';
+  const tok = getToken();
   let r;
   try {
     r = await fetch(`${API}/ai/cardiac-analyze`, {
@@ -800,32 +800,23 @@ export default function PatientDashboard() {
   const [activeTab, setActiveTab] = useState('upcoming');
   const [loading, setLoading] = useState(true);
 
-  const token = useCallback(() => localStorage.getItem('mc_token') || '', []);
+  const token = useCallback(() => getToken(), []);
 
   // ── Validate session — only redirect after full client mount ──────────────
-  // Never call window.location.href during SSR/hydration; wait for useEffect.
   useEffect(() => {
     setMounted(true);
-    const tok = localStorage.getItem('mc_token');
-    const u   = localStorage.getItem('mc_user');
+    const tok = getToken();
+    const parsedUser = getUser(); // plain object, no JSON.parse needed
 
-    // No token at all → go to login
     if (!tok) { window.location.href = '/login'; return; }
-
-    // Parse user from storage — catch corrupt data gracefully
-    let parsedUser = null;
-    try { parsedUser = JSON.parse(u || '{}'); } catch { parsedUser = null; }
-    if (parsedUser) setUser(parsedUser);
+    if (parsedUser && Object.keys(parsedUser).length > 0) setUser(parsedUser);
 
     const headers = { Authorization: `Bearer ${tok}` };
 
-    // Verify token is still valid before fetching data
     fetch(`${API}/auth/me`, { headers })
       .then(r => {
         if (r.status === 401 || r.status === 403) {
-          // Token expired or revoked — clear and redirect
-          localStorage.removeItem('mc_token');
-          localStorage.removeItem('mc_user');
+          clearSession();
           window.location.href = '/login';
           return null;
         }
@@ -833,12 +824,11 @@ export default function PatientDashboard() {
       })
       .then(me => {
         if (!me) return;
-        // Refresh user from server in case it changed
         if (me.user || me.data) {
           const fresh = me.user || me.data;
           const stored = { ...parsedUser, ...fresh };
           setUser(stored);
-          try { localStorage.setItem('mc_user', JSON.stringify(stored)); } catch {}
+          try { saveSession(tok, stored); } catch {}
         }
       })
       .catch(() => {}); // network error — don't logout, just continue
@@ -860,7 +850,7 @@ export default function PatientDashboard() {
 
   // Load ABHA status
   useEffect(() => {
-    const tok = localStorage.getItem('mc_token');
+    const tok = getToken();
     if (!tok) return;
     fetch(`${API}/auth/abha-status`, { headers: { Authorization: `Bearer ${tok}` } })
       .then(r => r.ok ? r.json() : null)
@@ -873,7 +863,7 @@ export default function PatientDashboard() {
     if (!/^\d{14}$/.test(clean)) { setAbhaMsg('Enter a valid 14-digit ABHA number'); return; }
     setAbhaLoading(true); setAbhaMsg('');
     try {
-      const tok = localStorage.getItem('mc_token');
+      const tok = getToken();
       const r = await fetch(`${API}/auth/verify-abha`, {
         method: 'POST', headers: { Authorization: `Bearer ${tok}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ abhaNumber: clean }),

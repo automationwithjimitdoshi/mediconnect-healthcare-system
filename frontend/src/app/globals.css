@@ -249,7 +249,7 @@ body {
 .mc-nav-btn {
   display: flex !important;
   align-items: center !important;
-  justify-content: center !important;   /* centred in 60px when collapsed */
+  justify-content: center !important;
   gap: 0 !important;
   width: 100% !important;
   min-height: 44px !important;
@@ -258,8 +258,10 @@ body {
   border-radius: 8px !important;
   cursor: pointer !important;
   white-space: nowrap !important;
-  overflow: hidden !important;
+  /* Do NOT use overflow:hidden here — it clips the icon on some browsers */
+  overflow: visible !important;
   transition: background 0.15s ease, color 0.15s ease !important;
+  position: relative !important;
 }
 
 @media (min-width: 1024px) {
@@ -270,20 +272,25 @@ body {
   }
 }
 
-/* ── Text labels — hidden when collapsed, revealed on hover ──────────────── */
-/* Use clip-path: GPU-composited, no layout reflow, no width jump */
+/* ── Text labels — ZERO layout space when collapsed, full when expanded ─────── */
+/* flex:1 was wrong — it reserved space even when clipped, pushing icons off.   */
+/* width:0 + min-width:0 means labels truly disappear from layout when hidden.  */
 .mc-nav-label,
 .mc-logo-text,
 .mc-user-info,
 .mc-signout-text {
   opacity: 0;
-  clip-path: inset(0 100% 0 0);
-  white-space: nowrap;
-  overflow: hidden;
-  pointer-events: none;
-  flex: 1;
+  width: 0;
   min-width: 0;
-  transition: opacity 0.18s ease 0.04s, clip-path 0.18s ease 0.04s;
+  max-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  pointer-events: none;
+  flex-shrink: 1;
+  flex-grow: 0;
+  transition: opacity 0.18s ease 0.04s,
+              width 0.18s ease 0.04s,
+              max-width 0.18s ease 0.04s;
 }
 
 @media (min-width: 1024px) {
@@ -292,12 +299,14 @@ body {
   .mc-sidebar:hover .mc-user-info,
   .mc-sidebar:hover .mc-signout-text {
     opacity: 1;
-    clip-path: inset(0 0% 0 0);
+    width: auto;
+    min-width: 0;
+    max-width: 180px;
     pointer-events: auto;
   }
 }
 
-/* Tablet: always hidden */
+/* Tablet: always hidden with zero space */
 @media (min-width: 640px) and (max-width: 1023px) {
   .mc-nav-label,
   .mc-logo-text,

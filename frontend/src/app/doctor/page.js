@@ -12,6 +12,7 @@ export const fetchCache = 'force-no-store';
 
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { saveSession, getToken, getUser, clearSession } from '@/lib/auth';
 
 const NAVY    = '#0c1a2e';
 const BLUE    = '#1565c0';
@@ -87,7 +88,7 @@ function DoctorProfileModal({ onClose, tokenFn, onSignOut }) {
     if (!ae) {
       // Try to extract from mc_user
       try {
-        const u = JSON.parse(localStorage.getItem('mc_user') || '{}');
+        const u = getUser();
         setAppEmail(u.email || '');
       } catch {}
     } else {
@@ -145,12 +146,12 @@ function DoctorProfileModal({ onClose, tokenFn, onSignOut }) {
       const d = await r.json();
       if (r.ok) {
         showToast('✅ Profile updated successfully!');
-        // Update localStorage user
+        // Update both sessionStorage and localStorage
         try {
-          const u = JSON.parse(localStorage.getItem('mc_user') || '{}');
+          const u = { ...getUser() };
           if (u.doctor) {
             u.doctor = { ...u.doctor, ...d.data };
-            localStorage.setItem('mc_user', JSON.stringify(u));
+            saveSession(getToken(), u);
           }
         } catch {}
         setDoctor(prev => ({ ...prev, ...d.data }));
@@ -487,7 +488,7 @@ function Sidebar({ active }) {
   const [moreOpen,    setMoreOpen]    = useState(false);
 
   useEffect(() => {
-    const tok = localStorage.getItem('mc_token') || '';
+    const tok = getToken();
     if (!tok) return;
     const h = { Authorization: `Bearer ${tok}` };
     fetch(`${API}/chat/rooms?limit=100`, { headers: h }).then(r => r.ok ? r.json() : null)
@@ -502,7 +503,7 @@ function Sidebar({ active }) {
 
   useEffect(() => {
     try {
-      const u = JSON.parse(localStorage.getItem('mc_user') || '{}');
+      const u = getUser();
       if (u?.doctor) {
         setDoctorName(`Dr. ${u.doctor.firstName || ''} ${u.doctor.lastName || ''}`.trim());
         setSpecialty(u.doctor.specialty || 'Doctor');
@@ -516,8 +517,7 @@ function Sidebar({ active }) {
   const initials = doctorName.split(' ').filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase() || 'DR';
 
   function signOut() {
-    localStorage.removeItem('mc_token');
-    localStorage.removeItem('mc_user');
+    clearSession();
     window.location.href = '/login';
   }
 
@@ -697,7 +697,7 @@ function Sidebar({ active }) {
       {/* Doctor Profile Modal */}
       {showProfile && (
         <DoctorProfileModal
-          tokenFn={() => localStorage.getItem('mc_token') || ''}
+          tokenFn={() => getToken()}
           onClose={() => setShowProfile(false)}
           onSignOut={signOut}
         />
@@ -805,7 +805,7 @@ const ECHO_TASKS = [
 
 // Sends file to backend proxy — backend calls Anthropic/OpenAI (avoids CORS)
 async function runCardiacAnalysis(imageBase64, mimeType, mode) {
-  const tok = localStorage.getItem('mc_token') || '';
+  const tok = getToken();
   let r;
   try {
     r = await fetch(`${API}/ai/cardiac-analyze`, {
@@ -1272,7 +1272,7 @@ export default function DoctorDashboard() {
   const [realPatients, setRealPatients] = useState([]);
   const [unreadCounts, setUnreadCounts] = useState({});
 
-  const token = useCallback(() => localStorage.getItem('mc_token') || '', []);
+  const token = useCallback(() => getToken(), []);
 
   // Fetch alerts + auto-refresh every 30 seconds
   const fetchAlerts = useCallback(async () => {
@@ -1299,33 +1299,26 @@ export default function DoctorDashboard() {
 
   useEffect(() => {
     setMounted(true);
-    const tok = token();
-    const u   = localStorage.getItem('mc_user');
+    const tok    = token();
+    const parsed = getUser(); // already a plain object from auth.js
 
-    // No token → redirect
-    if (!tok) { window.location.href = '/login'; return; }
-
-    // Parse user gracefully
-    let parsed = null;
-    try { parsed = JSON.parse(u || '{}'); } catch { parsed = null; }
-    if (!parsed) { window.location.href = '/login'; return; }
-    if (parsed.role !== 'DOCTOR') { window.location.href = '/patient'; return; }
+    if (!tok)                          { window.location.href = '/login';   return; }
+    if (!parsed || !parsed.role)       { window.location.href = '/login';   return; }
+    if (parsed.role !== 'DOCTOR')      { window.location.href = '/patient'; return; }
     setUser(parsed);
 
     const headers = { Authorization: `Bearer ${tok}` };
 
-    // Verify token is still valid — only redirect on confirmed 401/403
     fetch(`${API}/auth/me`, { headers })
       .then(r => {
         if (r.status === 401 || r.status === 403) {
-          localStorage.removeItem('mc_token');
-          localStorage.removeItem('mc_user');
+          clearSession();
           window.location.href = '/login';
           return null;
         }
         return r.ok ? r.json() : null;
       })
-      .catch(() => null); // network error → stay on page
+      .catch(() => null);
 
     fetch(`${API}/appointments`, { headers }).then(r => r.json())
       .then(d => { setAppts(d.data || d.appointments || []); }).catch(() => {}).finally(() => setLoading(false));
