@@ -664,7 +664,7 @@ router.post('/change-password', async (req, res) => {
 // ── POST /api/auth/verify-abha ──────────────────────────────────────────────
 // Patient enters their ABHA number to link it to their profile
 // Also checks if phone is associated with ABHA (simulated - real ABDM API requires OAuth)
-router.post('/verify-abha', async (req, res) => {
+router.post('/verify-abha', authenticate, async (req, res) => {
   try {
     const { abhaNumber, userId } = req.body;
     if (!abhaNumber) return res.status(400).json({ success: false, message: 'ABHA number required' });
@@ -707,19 +707,21 @@ router.post('/verify-abha', async (req, res) => {
 
 // ── GET /api/auth/abha-status ────────────────────────────────────────────────
 // Returns ABHA number linked to logged-in patient's profile
-router.get('/abha-status', async (req, res) => {
+router.get('/abha-status', authenticate, async (req, res) => {
   try {
-    const userId  = req.user?.userId || req.user?.id;
-    const patient = await prisma.patient.findUnique({ where: { userId }, select: { id: true } });
-    if (!patient) return res.status(404).json({ success: false, message: 'Patient not found' });
+    const userId = req.user?.userId || req.user?.id;
+    if (!userId) return res.status(401).json({ success: false, message: 'Unauthorized' });
 
-    const pat = await prisma.patient.findUnique({ where: { id: patient.id }, select: { policyNumber: true } });
-    const abhaId = pat?.policyNumber?.startsWith('ABHA:') ? pat.policyNumber.slice(5) : null;
+    const patient = await prisma.patient.findUnique({ where: { userId }, select: { id: true, policyNumber: true } });
+    if (!patient) return res.json({ success: true, abhaLinked: false, abhaId: null });
+
+    const abhaId = patient.policyNumber?.startsWith('ABHA:') ? patient.policyNumber.slice(5) : null;
     if (!abhaId) return res.json({ success: true, abhaLinked: false, abhaId: null });
 
     const fmt = abhaId.replace(/(\d{2})(\d{4})(\d{4})(\d{4})/, '$1-$2-$3-$4');
     return res.json({ success: true, abhaLinked: true, abhaId: fmt });
   } catch (err) {
+    console.error('[abha-status]', err.message);
     return res.status(500).json({ success: false, message: err.message });
   }
 });
