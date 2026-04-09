@@ -563,9 +563,9 @@ export default function PatientReportAnalyzer() {
 
   useEffect(() => {
     setMounted(true);
-    const u = JSON.stringify(getUser('PATIENT'));
-    if (!u) { router.push('/login'); return; }
-    const user = JSON.parse(u);
+    const u = getUser('PATIENT');
+    if (!u || !u.role) { router.push('/login'); return; }
+    const user = u;
     if (user.role !== 'PATIENT') { router.push('/'); return; }
     fetchHistory();
     fetchChatRooms();
@@ -1077,7 +1077,7 @@ export default function PatientReportAnalyzer() {
             })}
             <div style={{ padding:'13px 16px', background:BLUE_P, borderTop:`1px solid ${BORDER}` }}>
               <div style={{ fontWeight:700, fontSize:13, color:BLUE, marginBottom:4 }}>📅 Book an appointment directly</div>
-              <div style={{ fontSize:12.5, color:'#1e3a5f', marginBottom:10 }}>Book through MediConnect — your report will be shared automatically.</div>
+              <div style={{ fontSize:12.5, color:'#1e3a5f', marginBottom:10 }}>Book through NexMedicon AI — your report will be shared automatically.</div>
               <div style={{ display:'flex', gap:8 }}>
                 <button onClick={() => router.push('/patient/appointments/book')}
                   style={{ padding:'8px 18px', background:BLUE, color:'white', border:'none', borderRadius:9, fontSize:12.5, fontWeight:700, cursor:'pointer' }}>
@@ -1107,7 +1107,7 @@ export default function PatientReportAnalyzer() {
 
   return (
     <div style={{ display:'flex', height:'100vh', overflow:'hidden', fontFamily:'DM Sans, sans-serif' }}>
-      <Sidebar />
+      <PatientSidebar active="patientReports" />
       <div style={{ flex:1, display:'flex', flexDirection:'column', overflow:'hidden', minWidth:0 }}>
         {showShare && result && (
           <ShareModal fileId={currentFileId} analysis={result} chatRooms={chatRooms} token={token()} onClose={() => setShowShare(false)} />
@@ -1169,5 +1169,3 @@ export default function PatientReportAnalyzer() {
     </div>
   );
 }
-
-
