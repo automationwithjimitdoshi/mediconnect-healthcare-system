@@ -101,7 +101,7 @@ function Sidebar({ active }) {
             <div style={{ position: 'absolute', width: 3, height: 14, background: 'white', borderRadius: 2 }} />
           </div>
           <div style={{ minWidth: 0 }}>
-            <div className="mc-logo-text" style={{ fontSize: 13, fontWeight: 600, color: 'white' }}>MediConnect AI</div>
+            <div className="mc-logo-text" style={{ fontSize: 13, fontWeight: 600, color: 'white' }}>NexMedicon AI</div>
             <div className="mc-logo-text" style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', fontFamily: 'monospace', letterSpacing: '0.1em' }}>PATIENT PORTAL</div>
           </div>
         </div>
@@ -312,7 +312,7 @@ async function runCardiacAnalysis(imageBase64, mimeType, mode) {
   } catch (networkErr) {
     // fetch() itself threw — backend not reachable or CORS
     throw new Error(
-      'Cannot reach the MediConnect backend. ' +
+      'Cannot reach the NexMedicon backend. ' +
       'Make sure the backend server is running on port 5000 and ' +
       'ANTHROPIC_API_KEY is set in backend/.env'
     );
@@ -1019,7 +1019,7 @@ export default function PatientDashboard() {
           <div style={{ background: 'white', borderRadius: 16, padding: 28, maxWidth: 420, width: '100%', fontFamily: 'DM Sans, sans-serif' }}>
             <div style={{ fontSize: 16, fontWeight: 700, color: NAVY, marginBottom: 6 }}>🏥 {abha?.abhaLinked ? 'Update' : 'Add'} ABHA Number</div>
             <div style={{ fontSize: 13, color: SEC, marginBottom: 18, lineHeight: 1.6 }}>
-              Your Ayushman Bharat Health Account (ABHA) ID links your health records across hospitals in India. Doctors on MediConnect can access your national health history with your consent.
+              Your Ayushman Bharat Health Account (ABHA) ID links your health records across hospitals in India. Doctors on NexMedicon AI can access your national health history with your consent.
             </div>
 
             {abhaMsg && (

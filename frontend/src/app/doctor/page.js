@@ -539,7 +539,7 @@ function Sidebar({ active }) {
             <div style={{ position: 'absolute', width: 3, height: 14, background: 'white', borderRadius: 2 }} />
           </div>
           <div style={{ minWidth: 0 }}>
-            <div className="mc-logo-text" style={{ fontSize: 13, fontWeight: 600, color: 'white' }}>MediConnect AI</div>
+            <div className="mc-logo-text" style={{ fontSize: 13, fontWeight: 600, color: 'white' }}>NexMedicon AI</div>
             <div className="mc-logo-text" style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', fontFamily: 'monospace', letterSpacing: '0.1em' }}>DOCTOR PORTAL</div>
           </div>
         </div>
@@ -809,7 +809,7 @@ async function runCardiacAnalysis(imageBase64, mimeType, mode) {
   } catch (networkErr) {
     // fetch() itself threw — backend not reachable or CORS
     throw new Error(
-      'Cannot reach the MediConnect backend. ' +
+      'Cannot reach the NexMedicon backend. ' +
       'Make sure the backend server is running on port 5000 and ' +
       'ANTHROPIC_API_KEY is set in backend/.env'
     );

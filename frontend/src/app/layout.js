@@ -1,8 +1,8 @@
 import './globals.css';
 
 export const metadata = {
-  title:       'MediConnect AI',
-  description: 'AI-powered healthcare platform',
+  title:       'NexMedicon AI',
+  description: 'AI-powered healthcare platform by NexMedicon',
 };
 
 export default function RootLayout({ children }) {

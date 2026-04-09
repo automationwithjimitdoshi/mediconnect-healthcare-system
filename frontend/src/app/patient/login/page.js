@@ -104,12 +104,25 @@ function PatientLoginPageInner() {
 
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <div style={{ fontSize: 36, marginBottom: 8 }}>🏥</div>
+          {/* Replace /logo.png with your actual logo file placed in /public/logo.png */}
+          <div style={{
+            width: 72, height: 72, borderRadius: 18,
+            background: 'rgba(255,255,255,0.12)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            margin: '0 auto 14px', fontSize: 38,
+            boxShadow: '0 4px 20px rgba(0,0,0,0.2)',
+          }}>
+            🏥
+            {/* Uncomment below and remove the emoji above once you have a logo:
+            <img src="/logo.png" alt="NexMedicon AI"
+              style={{ width: 48, height: 48, borderRadius: 10, objectFit: 'contain' }} />
+            */}
+          </div>
           <div style={{ fontSize: 26, fontWeight: 700, color: 'white', letterSpacing: '-0.5px' }}>
             Patient Portal
           </div>
           <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.55)', marginTop: 4 }}>
-            MediConnect AI — Your Health Dashboard
+            NexMedicon AI — Your Health Dashboard
           </div>
         </div>
 
