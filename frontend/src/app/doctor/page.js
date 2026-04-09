@@ -29,7 +29,7 @@ const BORDER  = '#e2e8f0';
 const SURFACE = '#f7f9fc';
 const MUTED   = '#8896a7';
 const SEC     = '#4a5568';
-const API     = 'http://localhost:5000/api';
+const API     = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 const DOCTOR_NAV = [
   { id: 'doctorDashboard', label: 'Dashboard',     icon: '⊞', href: '/doctor'                },
@@ -534,12 +534,14 @@ function Sidebar({ active }) {
 
         {/* Logo */}
         <div style={{ padding: '16px 0 12px', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-          <div style={{ width: 32, height: 32, background: BLUE, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', flexShrink: 0 }}>
-            <div style={{ position: 'absolute', width: 14, height: 3, background: 'white', borderRadius: 2 }} />
-            <div style={{ position: 'absolute', width: 3, height: 14, background: 'white', borderRadius: 2 }} />
+          <div style={{ width: 32, height: 32, background: 'linear-gradient(135deg,#00796b,#1565c0)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <svg width="18" height="18" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="16" y="4" width="8" height="32" rx="3" fill="white" fillOpacity="0.95"/>
+              <rect x="4" y="16" width="32" height="8" rx="3" fill="white" fillOpacity="0.95"/>
+            </svg>
           </div>
           <div style={{ minWidth: 0 }}>
-            <div className="mc-logo-text" style={{ fontSize: 13, fontWeight: 600, color: 'white' }}>NexMedicon AI</div>
+            <div className="mc-logo-text" style={{ fontSize: 13, fontWeight: 700, color: 'white' }}>NexMedicon AI</div>
             <div className="mc-logo-text" style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', fontFamily: 'monospace', letterSpacing: '0.1em' }}>DOCTOR PORTAL</div>
           </div>
         </div>
@@ -557,8 +559,8 @@ function Sidebar({ active }) {
           </div>
         </div>
 
-        {/* Section label */}
-        <div className="mc-section-label" style={{ padding: '8px 0 4px', fontSize: 9, color: 'rgba(255,255,255,0.25)', fontFamily: 'monospace', letterSpacing: '0.12em', textAlign: 'center' }}>CLINICAL</div>
+        {/* Section divider — always visible */}
+        <div style={{ padding: '10px 0 4px', fontSize: 9, color: 'rgba(255,255,255,0.25)', fontFamily: 'monospace', letterSpacing: '0.12em', textAlign: 'center', flexShrink: 0 }}>· · ·</div>
 
         {/* Nav items — flex:1 + overflowY:auto ensures sign out is always visible */}
         <div style={{ padding: '0 6px', flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
@@ -1448,7 +1450,7 @@ export default function DoctorDashboard() {
                   const patAlert= alerts.find(a=>a.patient?.id===p.id||a.patientId===p.id);
                   return (
                     <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 0', borderBottom: i < realPatients.length - 1 ? `1px solid ${BORDER}` : 'none', cursor: 'pointer' }}
-                      onClick={() => router.push(`/doctor/chat?patientId=${p.id}`)}>
+                      onClick={() => router.push(`/doctor/patients/${p.id}`)}>
                       <div style={{ width: 34, height: 34, borderRadius: '50%', background: uBg(urgency), color: uColor(urgency), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
                         {inits}
                       </div>
@@ -1462,6 +1464,23 @@ export default function DoctorDashboard() {
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
                         {patAlert && <span style={{ fontSize: 10, fontWeight: 700, background: uBg('HIGH'), color: uColor('HIGH'), padding: '2px 7px', borderRadius: 4 }}>HIGH</span>}
                         {unread > 0 && <span style={{ fontSize: 10, fontWeight: 700, background: RED, color: 'white', borderRadius: 9, padding: '1px 6px' }}>{unread}</span>}
+                      </div>
+                      {/* Quick action buttons */}
+                      <div style={{ display: 'flex', gap: 4, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+                        <button
+                          onClick={() => router.push(`/doctor/patients/${p.id}`)}
+                          style={{ padding: '4px 8px', background: BLUE_P, color: BLUE, border: 'none', borderRadius: 6, fontSize: 10, fontWeight: 700, cursor: 'pointer' }}
+                          title="View patient info"
+                        >
+                          Info
+                        </button>
+                        <button
+                          onClick={() => router.push(`/doctor/chat?patientId=${p.id}`)}
+                          style={{ padding: '4px 8px', background: GREEN_P, color: GREEN, border: 'none', borderRadius: 6, fontSize: 10, fontWeight: 700, cursor: 'pointer' }}
+                          title="Open chat"
+                        >
+                          Chat
+                        </button>
                       </div>
                     </div>
                   );

@@ -102,27 +102,38 @@ function PatientLoginPageInner() {
     }}>
       <div style={{ width: '100%', maxWidth: 440 }}>
 
-        {/* Logo */}
+        {/* Logo + App Name */}
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          {/* Replace /logo.png with your actual logo file placed in /public/logo.png */}
+
+          {/* App logo — inline SVG, no external file needed.
+              To use your own image: replace the SVG div with:
+              <img src="/logo.png" alt="NexMedicon AI"
+                style={{ width:72, height:72, borderRadius:18, objectFit:'contain', margin:'0 auto 14px', display:'block' }} />
+          */}
           <div style={{
             width: 72, height: 72, borderRadius: 18,
-            background: 'rgba(255,255,255,0.12)',
+            background: 'linear-gradient(135deg, #00796b 0%, #1565c0 100%)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            margin: '0 auto 14px', fontSize: 38,
-            boxShadow: '0 4px 20px rgba(0,0,0,0.2)',
+            margin: '0 auto 16px',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
           }}>
-            🏥
-            {/* Uncomment below and remove the emoji above once you have a logo:
-            <img src="/logo.png" alt="NexMedicon AI"
-              style={{ width: 48, height: 48, borderRadius: 10, objectFit: 'contain' }} />
-            */}
+            <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+              {/* Cross / medical symbol */}
+              <rect x="16" y="4" width="8" height="32" rx="3" fill="white" fillOpacity="0.95"/>
+              <rect x="4" y="16" width="32" height="8" rx="3" fill="white" fillOpacity="0.95"/>
+              {/* Pulse line overlay */}
+              <path d="M4 20 L10 20 L13 14 L17 26 L21 18 L24 22 L27 20 L36 20"
+                stroke="white" strokeWidth="1.5" strokeOpacity="0.4"
+                strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+            </svg>
           </div>
-          <div style={{ fontSize: 26, fontWeight: 700, color: 'white', letterSpacing: '-0.5px' }}>
-            Patient Portal
+
+          {/* Main app name — large and prominent */}
+          <div style={{ fontSize: 28, fontWeight: 800, color: 'white', letterSpacing: '-0.5px', lineHeight: 1.1 }}>
+            NexMedicon AI
           </div>
-          <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.55)', marginTop: 4 }}>
-            NexMedicon AI — Your Health Dashboard
+          <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', marginTop: 6, letterSpacing: '0.04em' }}>
+            Patient Portal — Your Health Dashboard
           </div>
         </div>
 

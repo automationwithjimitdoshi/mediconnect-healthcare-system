@@ -222,7 +222,6 @@ body {
 .mc-nav-label,
 .mc-logo-text,
 .mc-user-info,
-.mc-section-label,
 .mc-signout-text {
   opacity: 0;
   max-width: 0;
@@ -237,7 +236,6 @@ body {
   .mc-sidebar:hover .mc-nav-label,
   .mc-sidebar:hover .mc-logo-text,
   .mc-sidebar:hover .mc-user-info,
-  .mc-sidebar:hover .mc-section-label,
   .mc-sidebar:hover .mc-signout-text {
     opacity: 1;
     max-width: 200px;

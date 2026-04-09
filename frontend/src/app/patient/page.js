@@ -96,12 +96,14 @@ function Sidebar({ active }) {
 
         {/* Logo */}
         <div style={{ padding: '16px 0 12px', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-          <div style={{ width: 32, height: 32, background: BLUE, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', flexShrink: 0 }}>
-            <div style={{ position: 'absolute', width: 14, height: 3, background: 'white', borderRadius: 2 }} />
-            <div style={{ position: 'absolute', width: 3, height: 14, background: 'white', borderRadius: 2 }} />
+          <div style={{ width: 32, height: 32, background: 'linear-gradient(135deg,#00796b,#1565c0)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <svg width="18" height="18" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="16" y="4" width="8" height="32" rx="3" fill="white" fillOpacity="0.95"/>
+              <rect x="4" y="16" width="32" height="8" rx="3" fill="white" fillOpacity="0.95"/>
+            </svg>
           </div>
           <div style={{ minWidth: 0 }}>
-            <div className="mc-logo-text" style={{ fontSize: 13, fontWeight: 600, color: 'white' }}>NexMedicon AI</div>
+            <div className="mc-logo-text" style={{ fontSize: 13, fontWeight: 700, color: 'white' }}>NexMedicon AI</div>
             <div className="mc-logo-text" style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', fontFamily: 'monospace', letterSpacing: '0.1em' }}>PATIENT PORTAL</div>
           </div>
         </div>
@@ -115,8 +117,8 @@ function Sidebar({ active }) {
           </div>
         </div>
 
-        {/* Section label */}
-        <div className="mc-section-label" style={{ padding: '8px 0 4px', fontSize: 9, color: 'rgba(255,255,255,0.25)', fontFamily: 'monospace', letterSpacing: '0.12em', textAlign: 'center' }}>MENU</div>
+        {/* Section divider — always visible, no hide class */}
+        <div style={{ padding: '10px 0 4px', fontSize: 9, color: 'rgba(255,255,255,0.25)', fontFamily: 'monospace', letterSpacing: '0.12em', textAlign: 'center', flexShrink: 0 }}>· · ·</div>
 
         {/* Nav items */}
         <div style={{ padding: '0 6px', flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
