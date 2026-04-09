@@ -63,7 +63,7 @@ function Sidebar({ active }) {
   const [moreOpen, setMoreOpen] = useState(false);
 
   useEffect(() => {
-    const tok = getToken();
+    const tok = getToken('PATIENT');
     if (!tok) return;
     fetch(`${API}/chat/rooms?limit=100`, { headers: { Authorization: `Bearer ${tok}` } })
       .then(r => r.ok ? r.json() : null)
@@ -75,7 +75,7 @@ function Sidebar({ active }) {
 
   useEffect(() => {
     try {
-      const u = getUser();
+      const u = getUser('PATIENT');
       const n = u?.patient
         ? `${u.patient.firstName || ''} ${u.patient.lastName || ''}`.trim()
         : (u?.email || 'Patient');
@@ -85,7 +85,7 @@ function Sidebar({ active }) {
   }, []);
 
   function signOut() {
-    clearSession();
+    clearSession('PATIENT');
     window.location.href = '/login';
   }
 
@@ -307,7 +307,7 @@ const ECHO_TASKS = [
 
 // Sends file to backend proxy — backend calls Anthropic/OpenAI (avoids CORS)
 async function runCardiacAnalysis(imageBase64, mimeType, mode) {
-  const tok = getToken();
+  const tok = getToken('PATIENT');
   let r;
   try {
     r = await fetch(`${API}/ai/cardiac-analyze`, {
@@ -800,13 +800,13 @@ export default function PatientDashboard() {
   const [activeTab, setActiveTab] = useState('upcoming');
   const [loading, setLoading] = useState(true);
 
-  const token = useCallback(() => getToken(), []);
+  const token = useCallback(() => getToken('PATIENT'), []);
 
   // ── Validate session — only redirect after full client mount ──────────────
   useEffect(() => {
     setMounted(true);
-    const tok = getToken();
-    const parsedUser = getUser(); // plain object, no JSON.parse needed
+    const tok = getToken('PATIENT');
+    const parsedUser = getUser('PATIENT'); // role-scoped
 
     if (!tok) { window.location.href = '/login'; return; }
     if (parsedUser && Object.keys(parsedUser).length > 0) setUser(parsedUser);
@@ -816,7 +816,7 @@ export default function PatientDashboard() {
     fetch(`${API}/auth/me`, { headers })
       .then(r => {
         if (r.status === 401 || r.status === 403) {
-          clearSession();
+          clearSession('PATIENT');
           window.location.href = '/login';
           return null;
         }
@@ -850,7 +850,7 @@ export default function PatientDashboard() {
 
   // Load ABHA status
   useEffect(() => {
-    const tok = getToken();
+    const tok = getToken('PATIENT');
     if (!tok) return;
     fetch(`${API}/auth/abha-status`, { headers: { Authorization: `Bearer ${tok}` } })
       .then(r => r.ok ? r.json() : null)
@@ -863,7 +863,7 @@ export default function PatientDashboard() {
     if (!/^\d{14}$/.test(clean)) { setAbhaMsg('Enter a valid 14-digit ABHA number'); return; }
     setAbhaLoading(true); setAbhaMsg('');
     try {
-      const tok = getToken();
+      const tok = getToken('PATIENT');
       const r = await fetch(`${API}/auth/verify-abha`, {
         method: 'POST', headers: { Authorization: `Bearer ${tok}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ abhaNumber: clean }),

@@ -88,7 +88,7 @@ function DoctorProfileModal({ onClose, tokenFn, onSignOut }) {
     if (!ae) {
       // Try to extract from mc_user
       try {
-        const u = getUser();
+        const u = getUser('DOCTOR');
         setAppEmail(u.email || '');
       } catch {}
     } else {
@@ -148,10 +148,10 @@ function DoctorProfileModal({ onClose, tokenFn, onSignOut }) {
         showToast('✅ Profile updated successfully!');
         // Update both sessionStorage and localStorage
         try {
-          const u = { ...getUser() };
+          const u = { ...getUser('DOCTOR') };
           if (u.doctor) {
             u.doctor = { ...u.doctor, ...d.data };
-            saveSession(getToken(), u);
+            saveSession(getToken('DOCTOR'), u);
           }
         } catch {}
         setDoctor(prev => ({ ...prev, ...d.data }));
@@ -488,7 +488,7 @@ function Sidebar({ active }) {
   const [moreOpen,    setMoreOpen]    = useState(false);
 
   useEffect(() => {
-    const tok = getToken();
+    const tok = getToken('DOCTOR');
     if (!tok) return;
     const h = { Authorization: `Bearer ${tok}` };
     fetch(`${API}/chat/rooms?limit=100`, { headers: h }).then(r => r.ok ? r.json() : null)
@@ -503,7 +503,7 @@ function Sidebar({ active }) {
 
   useEffect(() => {
     try {
-      const u = getUser();
+      const u = getUser('DOCTOR');
       if (u?.doctor) {
         setDoctorName(`Dr. ${u.doctor.firstName || ''} ${u.doctor.lastName || ''}`.trim());
         setSpecialty(u.doctor.specialty || 'Doctor');
@@ -517,7 +517,7 @@ function Sidebar({ active }) {
   const initials = doctorName.split(' ').filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase() || 'DR';
 
   function signOut() {
-    clearSession();
+    clearSession('DOCTOR');
     window.location.href = '/login';
   }
 
@@ -697,7 +697,7 @@ function Sidebar({ active }) {
       {/* Doctor Profile Modal */}
       {showProfile && (
         <DoctorProfileModal
-          tokenFn={() => getToken()}
+          tokenFn={() => getToken('DOCTOR')}
           onClose={() => setShowProfile(false)}
           onSignOut={signOut}
         />
@@ -805,7 +805,7 @@ const ECHO_TASKS = [
 
 // Sends file to backend proxy — backend calls Anthropic/OpenAI (avoids CORS)
 async function runCardiacAnalysis(imageBase64, mimeType, mode) {
-  const tok = getToken();
+  const tok = getToken('DOCTOR');
   let r;
   try {
     r = await fetch(`${API}/ai/cardiac-analyze`, {
@@ -1272,7 +1272,7 @@ export default function DoctorDashboard() {
   const [realPatients, setRealPatients] = useState([]);
   const [unreadCounts, setUnreadCounts] = useState({});
 
-  const token = useCallback(() => getToken(), []);
+  const token = useCallback(() => getToken('DOCTOR'), []);
 
   // Fetch alerts + auto-refresh every 30 seconds
   const fetchAlerts = useCallback(async () => {
@@ -1300,7 +1300,7 @@ export default function DoctorDashboard() {
   useEffect(() => {
     setMounted(true);
     const tok    = token();
-    const parsed = getUser(); // already a plain object from auth.js
+    const parsed = getUser('DOCTOR');
 
     if (!tok)                          { window.location.href = '/login';   return; }
     if (!parsed || !parsed.role)       { window.location.href = '/login';   return; }
@@ -1312,7 +1312,7 @@ export default function DoctorDashboard() {
     fetch(`${API}/auth/me`, { headers })
       .then(r => {
         if (r.status === 401 || r.status === 403) {
-          clearSession();
+          clearSession('DOCTOR');
           window.location.href = '/login';
           return null;
         }
