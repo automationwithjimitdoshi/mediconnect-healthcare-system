@@ -1,191 +1,156 @@
 /**
  * src/lib/auth.js — NexMedicon AI Session Manager
  *
- * ─────────────────────────────────────────────────────────────────────────────
- * PROBLEM SOLVED: Simultaneous Patient + Doctor Sessions
- * ─────────────────────────────────────────────────────────────────────────────
+ * ROLE-SCOPED STORAGE — Patient and Doctor sessions never interfere:
+ *   Patient  → mc_token_patient / mc_user_patient
+ *   Doctor   → mc_token_doctor  / mc_user_doctor
  *
- * Previous approach used shared keys (mc_token, mc_user) in localStorage.
- * Result: logging in as doctor overwrote patient session and vice versa.
- * sessionStorage "fix" helped on desktop tabs but broke Android WebView
- * because WebView is a single browsing context (no tab isolation).
+ * SSR-SAFE — All localStorage/sessionStorage access is guarded by
+ * typeof window checks so Next.js SSR never crashes.
+ * Do NOT add 'use client' — this is a plain utility module, not a component.
  *
- * DEFINITIVE FIX: Role-scoped storage keys
- * ─────────────────────────────────────────────────────────────────────────────
- *   Patient  → mc_token_patient  /  mc_user_patient
- *   Doctor   → mc_token_doctor   /  mc_user_doctor
- *
- * These keys NEVER overlap. A doctor login writes to doctor keys only.
- * A patient login writes to patient keys only.
- * Both sessions can coexist in localStorage simultaneously.
- *
- * Works identically on:
- *   ✓ Desktop browser (multiple tabs, same origin)
- *   ✓ Android WebView (single browsing context)
- *   ✓ iOS WebView
- *   ✓ Page refresh in any context
- *   ✓ Multiple users on same device (different roles)
- *
- * BACKWARD COMPATIBILITY:
- * The old shared keys (mc_token, mc_user) are still read as a fallback
- * so existing logged-in users aren't kicked out after the update.
- * ─────────────────────────────────────────────────────────────────────────────
+ * Works on: Desktop browser tabs · Android WebView · iOS WebView · Expo
  */
 
-// Role-scoped keys — each role has completely separate storage
 const KEYS = {
   PATIENT: { token: 'mc_token_patient', user: 'mc_user_patient' },
   DOCTOR:  { token: 'mc_token_doctor',  user: 'mc_user_doctor'  },
 };
-
-// Legacy keys — read-only fallback for existing sessions
 const LEGACY = { token: 'mc_token', user: 'mc_user' };
 
-/** Safe storage access — never throws */
-function safe(fn, fallback = null) {
-  try { return fn(); } catch { return fallback; }
+/* ── SSR guard — never access storage on server ────────────────────────── */
+const isBrowser = () => typeof window !== 'undefined';
+
+/* ── Safe storage helpers ───────────────────────────────────────────────── */
+function lsGet(key) {
+  if (!isBrowser()) return null;
+  try { return localStorage.getItem(key); } catch { return null; }
+}
+function lsSet(key, val) {
+  if (!isBrowser()) return;
+  try { localStorage.setItem(key, val); } catch {}
+}
+function lsDel(key) {
+  if (!isBrowser()) return;
+  try { localStorage.removeItem(key); } catch {}
+}
+function ssGet(key) {
+  if (!isBrowser()) return null;
+  try { return sessionStorage.getItem(key); } catch { return null; }
+}
+function ssSet(key, val) {
+  if (!isBrowser()) return;
+  try { sessionStorage.setItem(key, val); } catch {}
+}
+function ssDel(key) {
+  if (!isBrowser()) return;
+  try { sessionStorage.removeItem(key); } catch {}
 }
 
-/** Get the storage keys for a given role */
+/* ── Role key lookup ────────────────────────────────────────────────────── */
 function keysFor(role) {
-  const r = (role || '').toUpperCase();
-  return KEYS[r] || null;
+  return KEYS[(role || '').toUpperCase()] || null;
+}
+
+/* ── Auto-detect role from URL path ────────────────────────────────────── */
+function detectRole() {
+  if (!isBrowser()) return null;
+  const p = window.location.pathname;
+  if (p.startsWith('/doctor'))  return 'DOCTOR';
+  if (p.startsWith('/patient')) return 'PATIENT';
+  return null;
 }
 
 /**
  * saveSession(token, user)
- * Writes to role-scoped keys based on user.role.
- * Also writes legacy keys for backward compat on first login.
+ * Writes to role-scoped keys (primary) + legacy keys (backward compat).
+ * Call this on every successful login.
  */
 export function saveSession(token, user) {
   if (!token || !user) return;
-  const userStr = JSON.stringify(user);
-  const k = keysFor(user.role);
+  const str = JSON.stringify(user);
+  const k   = keysFor(user.role);
 
   if (k) {
-    // Write to role-scoped keys (primary)
-    safe(() => localStorage.setItem(k.token, token));
-    safe(() => localStorage.setItem(k.user,  userStr));
-    // Also write to sessionStorage for extra tab isolation on desktop
-    safe(() => sessionStorage.setItem(k.token, token));
-    safe(() => sessionStorage.setItem(k.user,  userStr));
+    lsSet(k.token, token); lsSet(k.user, str);
+    ssSet(k.token, token); ssSet(k.user, str);
   }
-
-  // Write legacy keys so any pages not yet updated still work
-  safe(() => localStorage.setItem(LEGACY.token, token));
-  safe(() => localStorage.setItem(LEGACY.user,  userStr));
+  // Legacy keys — keep for any pages not yet updated
+  lsSet(LEGACY.token, token);
+  lsSet(LEGACY.user,  str);
 }
 
 /**
  * getToken(role?)
- * Returns token for the given role.
- * If no role given, tries the current page's role context first,
- * then falls back to any available token.
- * Priority: sessionStorage role-scoped → localStorage role-scoped → legacy
+ * sessionStorage first (tab isolation on desktop), then localStorage.
+ * If no role given, auto-detects from URL.
  */
 export function getToken(role) {
-  if (role) {
-    const k = keysFor(role);
-    if (k) {
-      return safe(() => sessionStorage.getItem(k.token), null)
-          || safe(() => localStorage.getItem(k.token),   null)
-          || '';
-    }
+  const r = role || detectRole();
+  if (r) {
+    const k = keysFor(r);
+    if (k) return ssGet(k.token) || lsGet(k.token) || '';
   }
-  // No role specified — detect from page URL path
-  const path = typeof window !== 'undefined' ? window.location.pathname : '';
-  if (path.startsWith('/doctor')) return getToken('DOCTOR');
-  if (path.startsWith('/patient')) return getToken('PATIENT');
-  // Fallback: try both, then legacy
-  return safe(() => sessionStorage.getItem(KEYS.DOCTOR.token), null)
-      || safe(() => localStorage.getItem(KEYS.DOCTOR.token),   null)
-      || safe(() => sessionStorage.getItem(KEYS.PATIENT.token), null)
-      || safe(() => localStorage.getItem(KEYS.PATIENT.token),  null)
-      || safe(() => localStorage.getItem(LEGACY.token),        null)
-      || '';
+  // No role context — try all
+  return ssGet(KEYS.DOCTOR.token)  || lsGet(KEYS.DOCTOR.token)  ||
+         ssGet(KEYS.PATIENT.token) || lsGet(KEYS.PATIENT.token) ||
+         lsGet(LEGACY.token) || '';
 }
 
 /**
  * getUser(role?)
- * Returns user object for the given role.
- * Same priority chain as getToken.
+ * Returns the parsed user object for the given role.
+ * Returns {} if not found (never throws).
  */
 export function getUser(role) {
+  const r = role || detectRole();
   let raw = null;
 
-  if (role) {
-    const k = keysFor(role);
-    if (k) {
-      raw = safe(() => sessionStorage.getItem(k.user), null)
-         || safe(() => localStorage.getItem(k.user),   null);
-    }
+  if (r) {
+    const k = keysFor(r);
+    if (k) raw = ssGet(k.user) || lsGet(k.user);
   } else {
-    // Auto-detect from URL
-    const path = typeof window !== 'undefined' ? window.location.pathname : '';
-    if (path.startsWith('/doctor'))  return getUser('DOCTOR');
-    if (path.startsWith('/patient')) return getUser('PATIENT');
-    // Fallback
-    raw = safe(() => sessionStorage.getItem(KEYS.DOCTOR.user),  null)
-       || safe(() => localStorage.getItem(KEYS.DOCTOR.user),    null)
-       || safe(() => sessionStorage.getItem(KEYS.PATIENT.user), null)
-       || safe(() => localStorage.getItem(KEYS.PATIENT.user),   null)
-       || safe(() => localStorage.getItem(LEGACY.user),         null);
+    raw = ssGet(KEYS.DOCTOR.user)  || lsGet(KEYS.DOCTOR.user)  ||
+          ssGet(KEYS.PATIENT.user) || lsGet(KEYS.PATIENT.user) ||
+          lsGet(LEGACY.user);
   }
 
-  return safe(() => JSON.parse(raw || '{}'), {});
+  try { return JSON.parse(raw || '{}') || {}; } catch { return {}; }
 }
 
 /**
  * clearSession(role?)
- * Clears ONLY the specified role's keys.
- * If role given: clears only that role → other role's session untouched.
- * If no role: clears everything including legacy.
- *
- * CRITICAL: Unlike the old version, this does NOT wipe the other role.
+ * Clears ONLY the given role's keys — other role is untouched.
+ * If no role given, clears everything.
  */
 export function clearSession(role) {
-  if (role) {
-    const k = keysFor(role);
+  const r = role || detectRole();
+  if (r) {
+    const k = keysFor(r);
     if (k) {
-      safe(() => localStorage.removeItem(k.token));
-      safe(() => localStorage.removeItem(k.user));
-      safe(() => sessionStorage.removeItem(k.token));
-      safe(() => sessionStorage.removeItem(k.user));
+      lsDel(k.token); lsDel(k.user);
+      ssDel(k.token); ssDel(k.user);
     }
-    // Also clear legacy only if the role matches what's stored there
-    const legacyUser = safe(() => JSON.parse(localStorage.getItem(LEGACY.user) || '{}'), {});
-    if (!legacyUser.role || legacyUser.role === role.toUpperCase()) {
-      safe(() => localStorage.removeItem(LEGACY.token));
-      safe(() => localStorage.removeItem(LEGACY.user));
+    // Clear legacy only if it belongs to this role
+    const lu = (() => { try { return JSON.parse(lsGet(LEGACY.user) || '{}'); } catch { return {}; } })();
+    if (!lu.role || lu.role === r) {
+      lsDel(LEGACY.token); lsDel(LEGACY.user);
     }
   } else {
-    // Full clear — all roles
     Object.values(KEYS).forEach(k => {
-      safe(() => localStorage.removeItem(k.token));
-      safe(() => localStorage.removeItem(k.user));
-      safe(() => sessionStorage.removeItem(k.token));
-      safe(() => sessionStorage.removeItem(k.user));
+      lsDel(k.token); lsDel(k.user);
+      ssDel(k.token); ssDel(k.user);
     });
-    safe(() => localStorage.removeItem(LEGACY.token));
-    safe(() => localStorage.removeItem(LEGACY.user));
+    lsDel(LEGACY.token); lsDel(LEGACY.user);
   }
 }
 
-/**
- * hasSession(role?)
- * True if a session exists for the given role (or any role if none given).
- */
+/** True if a valid session exists for the given role (or any role) */
 export function hasSession(role) {
   return !!getToken(role);
 }
 
-/**
- * getRole()
- * Returns the role of the current page context ('PATIENT' | 'DOCTOR' | null)
- */
+/** Returns 'PATIENT' | 'DOCTOR' | null based on current URL */
 export function getRole() {
-  const path = typeof window !== 'undefined' ? window.location.pathname : '';
-  if (path.startsWith('/doctor'))  return 'DOCTOR';
-  if (path.startsWith('/patient')) return 'PATIENT';
-  return null;
+  return detectRole();
 }
