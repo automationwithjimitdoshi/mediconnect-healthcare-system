@@ -11,6 +11,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import PatientSidebar from '@/components/PatientSidebar';
+import { getToken, getUser, clearSession } from '@/lib/auth';
 
 const NAVY  ='#0c1a2e', BLUE  ='#1565c0', BLUE_P ='#e3f0ff', RED   ='#c62828', RED_P ='#fdecea',
       AMBER ='#b45309', AMBER_P='#fff3e0', GREEN ='#1b5e20', GREEN_P='#e8f5e9',
@@ -39,74 +41,6 @@ function sTag(status) {
   return { display:'inline-block', background:s.bg, color:s.color, fontSize:11, fontWeight:600, padding:'3px 10px', borderRadius:20 };
 }
 
-// ── Sidebar ───────────────────────────────────────────────────────────────────
-function Sidebar({ active }) {
-  const router = useRouter();
-  const [chatBadge, setChatBadge] = useState(0);
-  useEffect(() => {
-    const tok = localStorage.getItem('mc_token') || '';
-    if (!tok) return;
-    fetch(`${API}/chat/rooms?limit=100`, {headers:{Authorization:`Bearer ${tok}`}})
-      .then(r=>r.ok?r.json():null)
-      .then(d => {
-        const total = (d?.data||[]).reduce((sum,r) => sum + (r.unreadCount||0), 0);
-        setChatBadge(total);
-      }).catch(()=>{});
-  }, []);
-  const [name, setName]   = useState('Patient');
-  const [inits, setInits] = useState('P');
-  useEffect(() => {
-    try {
-      const u = JSON.parse(localStorage.getItem('mc_user') || '{}');
-      const n = u?.patient
-        ? `${u.patient.firstName||''} ${u.patient.lastName||''}`.trim()
-        : (u?.email || 'Patient');
-      setName(n);
-      setInits(n.split(' ').filter(Boolean).map(w=>w[0]).join('').slice(0,2).toUpperCase() || 'P');
-    } catch {}
-  }, []);
-  return (
-    <div style={{ width:220, background:NAVY, display:'flex', flexDirection:'column', flexShrink:0 }}>
-      <div style={{ padding:'20px 18px 14px', borderBottom:'1px solid rgba(255,255,255,0.08)' }}>
-        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-          <div style={{ width:32, height:32, background:BLUE, borderRadius:8, display:'flex', alignItems:'center', justifyContent:'center', position:'relative', flexShrink:0 }}>
-            <div style={{ position:'absolute', width:14, height:3, background:'white', borderRadius:2 }} />
-            <div style={{ position:'absolute', width:3, height:14, background:'white', borderRadius:2 }} />
-          </div>
-          <div>
-            <div style={{ fontSize:13, fontWeight:600, color:'white' }}>MediConnect AI</div>
-            <div style={{ fontSize:9, color:'rgba(255,255,255,0.3)', fontFamily:'monospace', letterSpacing:'0.1em' }}>PATIENT PORTAL</div>
-          </div>
-        </div>
-      </div>
-      <div style={{ margin:'10px 10px 6px', background:'rgba(255,255,255,0.06)', borderRadius:9, padding:'8px 10px', display:'flex', alignItems:'center', gap:8 }}>
-        <div style={{ width:30, height:30, borderRadius:'50%', background:BLUE_P, color:BLUE, display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, flexShrink:0 }}>{inits}</div>
-        <div style={{ flex:1, minWidth:0 }}>
-          <div suppressHydrationWarning style={{ fontSize:12, fontWeight:500, color:'white', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{name}</div>
-          <div style={{ fontSize:10, color:'rgba(255,255,255,0.4)' }}>Patient</div>
-        </div>
-      </div>
-      <div style={{ padding:'10px 18px 4px', fontSize:9, color:'rgba(255,255,255,0.25)', fontFamily:'monospace', letterSpacing:'0.12em' }}>MY HEALTH</div>
-      <div style={{ padding:'0 8px', flex:1 }}>
-        {NAV.map(item => { const isA = active===item.id; return (
-          <button className="mc-nav-btn" key={item.id} onClick={() => router.push(item.href)}
-            style={{ display:'flex', alignItems:'center', gap:10, width:'100%', padding:'9px 12px', margin:'2px 0', borderRadius:8, cursor:'pointer', border:'none', textAlign:'left', background:isA?BLUE:'transparent', color:isA?'white':'rgba(255,255,255,0.55)', fontSize:13, fontFamily:'DM Sans, sans-serif', fontWeight:isA?500:400 }}>
-            <span style={{ fontSize:14 }}>{item.icon}</span>
-            <span style={{ flex:1 }}>{item.label}</span>
-            {(item.badge!=null && (item.badge==='_chat'?chatBadge:item.badge)!==0) && <span style={{ background:item.badge==='FREE'?'#0e7490':'#ef4444', color:'white', fontSize:item.badge==='FREE'?9:10, fontWeight:600, padding:item.badge==='FREE'?'2px 6px':'1px 5px', borderRadius:99 }}>{item.badge==='_chat'?chatBadge:item.badge}</span>}
-          </button>
-        ); })}
-      </div>
-      <div style={{ padding:'10px 12px', borderTop:'1px solid rgba(255,255,255,0.08)' }}>
-        <button onClick={() => { localStorage.removeItem('mc_token'); localStorage.removeItem('mc_user'); router.push('/login'); }}
-          style={{ width:'100%', padding:'7px 10px', background:'rgba(255,255,255,0.05)', border:'none', borderRadius:8, color:'rgba(255,255,255,0.4)', fontSize:12, cursor:'pointer', fontFamily:'DM Sans, sans-serif', textAlign:'left' }}>
-          🚪 Sign out
-        </button>
-      </div>
-    </div>
-  );
-}
-
 // ── Main ──────────────────────────────────────────────────────────────────────
 export default function PatientAppointmentsPage() {
   const router = useRouter();
@@ -116,12 +50,12 @@ export default function PatientAppointmentsPage() {
   const [filter,   setFilter]   = useState('UPCOMING');
   const [toast,    setToast]    = useState('');
 
-  const token    = useCallback(() => localStorage.getItem('mc_token') || '', []);
+  const token    = useCallback(() => getToken('PATIENT') || '', []);
   const showToast= msg => { setToast(msg); setTimeout(() => setToast(''), 3500); };
 
   useEffect(() => {
     setMounted(true);
-    if (!localStorage.getItem('mc_token')) { router.push('/login'); return; }
+    if (!getToken('PATIENT')) { router.push('/login'); return; }
     fetch(`${API}/appointments`, { headers: { Authorization: `Bearer ${token()}` } })
       .then(r => r.json())
       .then(d => setAppts(d.data || d.appointments || []))
@@ -151,7 +85,7 @@ export default function PatientAppointmentsPage() {
 
   return (
     <div style={{ display:'flex', height:'100vh', overflow:'hidden', fontFamily:'DM Sans, sans-serif' }}>
-      <Sidebar active="patientAppts" />
+      <PatientSidebar active="patientAppts" />
 
       <div style={{ flex:1, display:'flex', flexDirection:'column', overflow:'hidden' }}>
         <div style={{ flex:1, overflowY:'auto', padding:24, background:SURFACE }}>

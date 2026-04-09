@@ -17,6 +17,9 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { getToken, getUser, clearSession } from '@/lib/auth';
+import PatientSidebar from '@/components/PatientSidebar';
+
 
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const NAVY  = '#0c1a2e', BLUE   = '#1565c0', BLUE_P = '#e3f0ff',
@@ -72,77 +75,6 @@ const NAV = [
   { id:'patientFiles',     label:'My Files',         icon:'📁', href:'/patient/files'              },
   { id:'patientReports',   label:'Report Analyzer',  icon:'🔬', href:'/patient/reports'      },
 ];
-
-// ── Sidebar ───────────────────────────────────────────────────────────────────
-function Sidebar() {
-  const router = useRouter();
-  const [name,      setName]      = useState('Patient');
-  const [inits,     setInits]     = useState('P');
-  const [chatBadge, setChatBadge] = useState(0);
-  useEffect(() => {
-    try {
-      const u = JSON.parse(localStorage.getItem('mc_user') || '{}');
-      const n = u?.patient ? `${u.patient.firstName||''} ${u.patient.lastName||''}`.trim() : (u?.email || 'Patient');
-      setName(n); setInits(n.split(' ').filter(Boolean).map(w=>w[0]).join('').slice(0,2).toUpperCase() || 'P');
-    } catch {}
-    // Fetch unread chat count
-    const tok = localStorage.getItem('mc_token') || '';
-    if (tok) {
-      fetch(`${API}/chat/rooms?limit=100`, { headers: { Authorization: `Bearer ${tok}` } })
-        .then(r => r.ok ? r.json() : null)
-        .then(d => { const n = (d?.data||[]).reduce((s,r) => s+(r.unreadCount||0), 0); setChatBadge(n); })
-        .catch(() => {});
-    }
-  }, []);
-  return (
-    <div style={{ width:220, background:NAVY, display:'flex', flexDirection:'column', flexShrink:0, overflow:'hidden' }}>
-      <div style={{ padding:'20px 18px 14px', borderBottom:'1px solid rgba(255,255,255,0.08)' }}>
-        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-          <div style={{ width:32, height:32, background:BLUE, borderRadius:8, display:'flex', alignItems:'center', justifyContent:'center', position:'relative', flexShrink:0 }}>
-            <div style={{ position:'absolute', width:14, height:3, background:'white', borderRadius:2 }} />
-            <div style={{ position:'absolute', width:3, height:14, background:'white', borderRadius:2 }} />
-          </div>
-          <div>
-            <div style={{ fontSize:13, fontWeight:600, color:'white' }}>MediConnect AI</div>
-            <div style={{ fontSize:9, color:'rgba(255,255,255,0.3)', fontFamily:'monospace', letterSpacing:'0.1em' }}>PATIENT PORTAL</div>
-          </div>
-        </div>
-      </div>
-      <div style={{ margin:'10px 10px 6px', background:'rgba(255,255,255,0.06)', borderRadius:9, padding:'8px 10px', display:'flex', alignItems:'center', gap:8 }}>
-        <div style={{ width:30, height:30, borderRadius:'50%', background:BLUE_P, color:BLUE, display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, flexShrink:0 }}>{inits}</div>
-        <div style={{ flex:1, minWidth:0 }}>
-          <div suppressHydrationWarning style={{ fontSize:12, fontWeight:500, color:'white', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{name}</div>
-          <div style={{ fontSize:10, color:'rgba(255,255,255,0.4)' }}>Patient</div>
-        </div>
-      </div>
-      <div style={{ padding:'10px 18px 4px', fontSize:9, color:'rgba(255,255,255,0.25)', fontFamily:'monospace', letterSpacing:'0.12em' }}>MY HEALTH</div>
-      <div style={{ padding:'0 8px', flex:1, overflowY:'auto' }}>
-        {NAV.map(item => {
-          const isActive = item.href === '/patient/reports';
-          return (
-            <button className="mc-nav-btn" key={item.id} onClick={() => router.push(item.href)}
-              style={{ display:'flex', alignItems:'center', gap:10, width:'100%', padding:'9px 12px', margin:'2px 0', borderRadius:8, cursor:'pointer', border:'none', textAlign:'left', background:isActive?BLUE:'transparent', color:isActive?'white':'rgba(255,255,255,0.55)', fontSize:13, fontFamily:'DM Sans, sans-serif', fontWeight:isActive?500:400 }}>
-              <span style={{ fontSize:14 }}>{item.icon}</span>
-              <span style={{ flex:1 }}>{item.label}</span>
-              {item.id === 'patientChat' && chatBadge > 0 && (
-                <span style={{ background:'#ef4444', color:'white', fontSize:10, fontWeight:600, padding:'1px 5px', borderRadius:99 }}>{chatBadge}</span>
-              )}
-              {item.id === 'patientReports' && (
-                <span style={{ background:'#0e7490', color:'white', fontSize:9, fontWeight:600, padding:'2px 6px', borderRadius:99 }}>FREE</span>
-              )}
-            </button>
-          );
-        })}
-      </div>
-      <div style={{ padding:'10px 12px', borderTop:'1px solid rgba(255,255,255,0.08)' }}>
-        <button onClick={() => { localStorage.removeItem('mc_token'); localStorage.removeItem('mc_user'); router.push('/login'); }}
-          style={{ width:'100%', padding:'7px 10px', background:'rgba(255,255,255,0.05)', border:'none', borderRadius:8, color:'rgba(255,255,255,0.4)', fontSize:12, cursor:'pointer', textAlign:'left', fontFamily:'DM Sans, sans-serif' }}>
-          🚪 Sign out
-        </button>
-      </div>
-    </div>
-  );
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  FEATURE CARD DEFINITIONS  (all 4 features)
@@ -627,11 +559,11 @@ export default function PatientReportAnalyzer() {
   const [activeFeature, setActiveFeat]  = useState(null);
   const [reportMeta,    setReportMeta]  = useState({ patientName:'', labName:'' });
 
-  const token = useCallback(() => localStorage.getItem('mc_token') || '', []);
+  const token = useCallback(() => getToken('PATIENT') || '', []);
 
   useEffect(() => {
     setMounted(true);
-    const u = localStorage.getItem('mc_user');
+    const u = JSON.stringify(getUser('PATIENT'));
     if (!u) { router.push('/login'); return; }
     const user = JSON.parse(u);
     if (user.role !== 'PATIENT') { router.push('/'); return; }

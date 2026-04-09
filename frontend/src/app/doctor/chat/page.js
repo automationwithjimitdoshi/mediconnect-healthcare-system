@@ -13,6 +13,8 @@ export const fetchCache = 'force-no-store';
 
 import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import DoctorSidebar from '@/components/DoctorSidebar';
+import { getToken, getUser, clearSession } from '@/lib/auth';
 
 const NAVY='#0c1a2e',BLUE='#1565c0',BLUE_P='#e3f0ff',RED='#c62828',RED_P='#fdecea',
       AMBER='#b45309',AMBER_P='#fff3e0',GREEN='#1b5e20',GREEN_P='#e8f5e9',
@@ -170,7 +172,7 @@ function DoctorProfileModal({ onClose, tokenFn, onSignOut }) {
     if (!ae) {
       // Try to extract from mc_user
       try {
-        const u = JSON.parse(localStorage.getItem('mc_user') || '{}');
+        const u = JSON.parse(JSON.stringify(getUser('DOCTOR')) || '{}');
         setAppEmail(u.email || '');
       } catch {}
     } else {
@@ -230,7 +232,7 @@ function DoctorProfileModal({ onClose, tokenFn, onSignOut }) {
         showToast('✅ Profile updated successfully!');
         // Update localStorage user
         try {
-          const u = JSON.parse(localStorage.getItem('mc_user') || '{}');
+          const u = JSON.parse(JSON.stringify(getUser('DOCTOR')) || '{}');
           if (u.doctor) {
             u.doctor = { ...u.doctor, ...d.data };
             localStorage.setItem('mc_user', JSON.stringify(u));
@@ -547,82 +549,6 @@ function DoctorProfileModal({ onClose, tokenFn, onSignOut }) {
           </div>
         )}
       </div>
-    </div>
-  );
-}
-
-function Sidebar({ active }) {
-  const router = useRouter();
-  const [showProfile,setShowProfile]=useState(false);
-  const [chatBadge,  setChatBadge]  = useState(0);
-  const [alertBadge, setAlertBadge] = useState(0);
-  useEffect(() => {
-    const tok = localStorage.getItem('mc_token') || '';
-    if (!tok) return;
-    const h = { Authorization: `Bearer ${tok}` };
-    // Unread chat count
-    fetch(`${API}/chat/rooms?limit=100`, {headers:h}).then(r=>r.ok?r.json():null)
-      .then(d => {
-        const total = (d?.data||[]).reduce((sum,r) => sum + (r.unreadCount||0), 0);
-        setChatBadge(total);
-      }).catch(()=>{});
-    // Alert count
-    fetch(`${API}/cdss/alerts`, {headers:h}).then(r=>r.ok?r.json():null)
-      .then(d => setAlertBadge((d?.data||d?.alerts||[]).length))
-      .catch(()=>{});
-  }, []);
-  const [doctorName, setDoctorName] = useState('');
-  const [specialty,  setSpecialty]  = useState('');
-  useEffect(() => {
-    try {
-      const u = JSON.parse(localStorage.getItem('mc_user') || '{}');
-      if (u?.doctor) { setDoctorName(`Dr. ${u.doctor.firstName || ''} ${u.doctor.lastName || ''}`.trim()); setSpecialty(u.doctor.specialty || 'Doctor'); }
-      else { setDoctorName(u?.email || 'Doctor'); setSpecialty('Doctor Portal'); }
-    } catch {}
-  }, []);
-  const initials = doctorName.split(' ').filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase() || 'DR';
-  return (
-    <div className="mc-sidebar" style={{ width: 220, background: NAVY, display: 'flex', flexDirection: 'column', flexShrink: 0, overflow: 'hidden' }}>
-      <div style={{ padding: '20px 18px 14px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 32, height: 32, background: BLUE, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', flexShrink: 0 }}>
-            <div style={{ position: 'absolute', width: 14, height: 3, background: 'white', borderRadius: 2 }} />
-            <div style={{ position: 'absolute', width: 3, height: 14, background: 'white', borderRadius: 2 }} />
-          </div>
-          <div><div style={{ fontSize: 13, fontWeight: 600, color: 'white' }}>MediConnect <span className="mc-logo-text">AI</span></div><div className="mc-section-label" style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', fontFamily: 'monospace', letterSpacing: '0.1em' }}>DOCTOR PORTAL</div></div>
-        </div>
-      </div>
-      <div onClick={()=>setShowProfile(true)} title="View/Edit Profile" style={{cursor:'pointer', margin:'10px 10px 6px', background:'rgba(255,255,255,0.06)', borderRadius:9, padding:'8px 10px', display:'flex', alignItems:'center', gap:8}}>
-        <div style={{ width: 30, height: 30, borderRadius: '50%', background: TEAL_P, color: TEAL, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{initials}</div>
-        <div style={{ flex: 1, minWidth: 0 }}><div suppressHydrationWarning style={{ fontSize: 12, fontWeight: 500, color: 'white', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doctorName || 'Doctor'}</div><div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>{specialty}</div></div>
-      </div>
-      <div style={{ padding: '10px 18px 4px', fontSize: 9, color: 'rgba(255,255,255,0.25)', fontFamily: 'monospace', letterSpacing: '0.12em' }}>CLINICAL</div>
-      <div style={{ padding: '0 8px', flex: 1 }}>
-        {NAV.map(item => {
-          const isA = active === item.id;
-          return (
-            <button className="mc-nav-btn" key={item.id} onClick={() => router.push(item.href)}
-              style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '9px 12px', margin: '2px 0', borderRadius: 8, cursor: 'pointer', border: 'none', textAlign: 'left', background: isA ? BLUE : 'transparent', color: isA ? 'white' : 'rgba(255,255,255,0.55)', fontSize: 13, fontFamily: 'DM Sans, sans-serif', fontWeight: isA ? 500 : 400, transition: 'background 0.12s' }}>
-              <span className="mc-nav-icon" style={{ fontSize: 14 }}>{item.icon}</span>
-              <span className="mc-nav-label" style={{ flex: 1 }}>{item.label}</span>
-              {(item.badge != null && item.badge !== 0 && (item.badge==='_chat'?chatBadge:item.badge==='_alerts'?alertBadge:item.badge) !== 0) && <span style={{ background: item.badge === 'PREMIUM' ? PURPLE : '#ef4444', color: item.badge === 'PREMIUM' ? '#e9d5ff' : 'white', fontSize: item.badge === 'PREMIUM' ? 8 : 10, fontWeight: 600, padding: item.badge === 'PREMIUM' ? '2px 5px' : '1px 5px', borderRadius: 99 }}>{item.badge==='_chat'?chatBadge:item.badge==='_alerts'?alertBadge:item.badge}</span>}
-            </button>
-          );
-        })}
-      </div>
-      <div style={{ padding: '10px 12px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-        <button onClick={() => { localStorage.removeItem('mc_token'); localStorage.removeItem('mc_user'); router.push('/login'); }}
-          style={{ width: '100%', padding: '7px 10px', background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: 8, color: 'rgba(255,255,255,0.4)', fontSize: 12, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', textAlign: 'left' }}>
-          🚪 Sign out
-        </button>
-      </div>
-      {showProfile&&(
-        <DoctorProfileModal
-          tokenFn={()=>localStorage.getItem('mc_token')||''}
-          onClose={()=>setShowProfile(false)}
-          onSignOut={()=>{localStorage.removeItem('mc_token');localStorage.removeItem('mc_user');router.push('/login');}}
-        />
-      )}
     </div>
   );
 }
@@ -960,7 +886,7 @@ function DoctorChatPageInner(){
   // Chat lock state — true when appointment is CANCELLED (doctor cancelled or patient cancelled)
   const [chatLocked,   setChatLocked]   = useState(false);
 
-  const token     = useCallback(()=>localStorage.getItem('mc_token')||'',[]);
+  const token     = useCallback(()=>getToken('DOCTOR')||'',[]);
   const showToast = useCallback(msg=>{setToast(msg);setTimeout(()=>setToast(''),3500);},[]);
 
   const patient    = selRoom?.patient||selRoom?.appointment?.patient;
@@ -970,7 +896,7 @@ function DoctorChatPageInner(){
   const sharedFiles= messages.filter(m=>m.type==='FILE'||m.file||m._file);
 
   useEffect(()=>{setMounted(true);
-    const tok=localStorage.getItem('mc_token');const u=localStorage.getItem('mc_user');
+    const tok=localStorage.getItem('mc_token');const u=JSON.stringify(getUser('DOCTOR'));
     if(!tok){router.push('/login');return;}
     if(u){try{const p=JSON.parse(u);if(p.role!=='DOCTOR'){router.push('/');return;}}catch{}}
     loadRooms();
@@ -1409,7 +1335,7 @@ function DoctorChatPageInner(){
   return(
     <div style={{display:'flex',height:'100vh',fontFamily:'DM Sans, sans-serif',overflow:'hidden'}}>
       {aiModal&&<AIModal fileId={aiModal.fileId} fileName={aiModal.fileName} tokenFn={token} onClose={()=>setAiModal(null)}/>}
-      <Sidebar active="doctorChat"/>
+      <DoctorSidebar active="doctorChat"/>
 
       <div style={{flex:1,display:'flex',overflow:'hidden'}}>
 

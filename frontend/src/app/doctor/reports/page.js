@@ -22,6 +22,8 @@ export const fetchCache = 'force-no-store';
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import DoctorSidebar from '@/components/DoctorSidebar';
+import { getToken, getUser, clearSession } from '@/lib/auth';
 
 function getParam(name) {
   if (typeof window === 'undefined') return null;
@@ -32,7 +34,7 @@ const NAVY = '#0c1a2e', BLUE = '#1565c0', BLUE_P = '#e3f0ff', RED = '#c62828', R
   AMBER = '#b45309', AMBER_P = '#fff3e0', GREEN = '#1b5e20', GREEN_P = '#e8f5e9',
   TEAL = '#00796b', TEAL_P = '#e0f5f0', PURPLE = '#6b21a8', PURPLE_P = '#f5f3ff',
   BORDER = '#e2e8f0', SURFACE = '#f7f9fc', MUTED = '#8896a7', SEC = '#4a5568';
-const API = 'http://localhost:5000/api';
+const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 const STATIC = 'http://localhost:5000';
 
 const NAV = [
@@ -600,126 +602,6 @@ function DoctorProfileModal({ onClose, tokenFn, onSignOut }) {
   );
 }
 
-function Sidebar({ active }) {
-  const router = useRouter();
-  const [showProfile, setShowProfile] = useState(false);
-  const [chatBadge, setChatBadge] = useState(0);
-  const [alertBadge, setAlertBadge] = useState(0);
-
-  useEffect(() => {
-    const tok = localStorage.getItem('mc_token') || '';
-    if (!tok) return;
-    const h = { Authorization: `Bearer ${tok}` };
-    fetch(`${API}/chat/rooms?limit=100`, { headers: h })
-      .then(r => r.ok ? r.json() : null)
-      .then(d => {
-        const total = (d?.data || []).reduce((sum, r) => sum + (r.unreadCount || 0), 0);
-        setChatBadge(total);
-      }).catch(() => { });
-    fetch(`${API}/cdss/alerts`, { headers: h })
-      .then(r => r.ok ? r.json() : null)
-      .then(d => setAlertBadge((d?.data || d?.alerts || []).length))
-      .catch(() => { });
-  }, []);
-
-  const [doctorName, setDoctorName] = useState('');
-  const [specialty, setSpecialty] = useState('');
-  useEffect(() => {
-    try {
-      const u = JSON.parse(localStorage.getItem('mc_user') || '{}');
-      if (u?.doctor) {
-        setDoctorName(`Dr. ${u.doctor.firstName || ''} ${u.doctor.lastName || ''}`.trim());
-        setSpecialty(u.doctor.specialty || 'Doctor');
-      } else {
-        setDoctorName(u?.email || 'Doctor');
-        setSpecialty('Doctor Portal');
-      }
-    } catch { }
-  }, []);
-
-  const initials = doctorName.split(' ').filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase() || 'DR';
-
-  return (
-    <div className="mc-sidebar" style={{ width: 220, background: NAVY, display: 'flex', flexDirection: 'column', flexShrink: 0, overflow: 'hidden' }}>
-      <div style={{ padding: '20px 18px 14px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 32, height: 32, background: BLUE, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', flexShrink: 0 }}>
-            <div style={{ position: 'absolute', width: 14, height: 3, background: 'white', borderRadius: 2 }} />
-            <div style={{ position: 'absolute', width: 3, height: 14, background: 'white', borderRadius: 2 }} />
-          </div>
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: 'white' }}>MediConnect AI</div>
-            <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', fontFamily: 'monospace', letterSpacing: '0.1em' }}>DOCTOR PORTAL</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Fix 1: merged duplicate style props into one, kept cursor:'pointer' */}
-      <div
-        onClick={() => setShowProfile(true)}
-        title="View/Edit Profile"
-        style={{
-          cursor: 'pointer',
-          margin: '10px 10px 6px',
-          background: 'rgba(255,255,255,0.06)',
-          borderRadius: 9,
-          padding: '8px 10px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8
-        }}
-      >
-        <div style={{ width: 30, height: 30, borderRadius: '50%', background: TEAL_P, color: TEAL, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
-          {initials}
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div suppressHydrationWarning style={{ fontSize: 12, fontWeight: 500, color: 'white', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {doctorName || 'Doctor'}
-          </div>
-          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>{specialty}</div>
-        </div>
-      </div>
-
-      <div style={{ padding: '10px 18px 4px', fontSize: 9, color: 'rgba(255,255,255,0.25)', fontFamily: 'monospace', letterSpacing: '0.12em' }}>CLINICAL</div>
-
-      <div style={{ padding: '0 8px', flex: 1 }}>
-        {/* Fix 2: was DOCTOR_NAV — the array in this file is called NAV */}
-        {NAV.map(item => {
-          const isA = active === item.id;
-          const badgeVal = item.badge === '_chat' ? chatBadge : item.badge === '_alerts' ? alertBadge : item.badge;
-          return (
-            <button className="mc-nav-btn" key={item.id} onClick={() => router.push(item.href)}
-              style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '9px 12px', margin: '2px 0', borderRadius: 8, cursor: 'pointer', border: 'none', textAlign: 'left', background: isA ? BLUE : 'transparent', color: isA ? 'white' : 'rgba(255,255,255,0.55)', fontSize: 13, fontFamily: 'DM Sans, sans-serif', fontWeight: isA ? 500 : 400, transition: 'background 0.12s' }}>
-              <span className="mc-nav-icon" style={{ fontSize: 14 }}>{item.icon}</span>
-              <span className="mc-nav-label" style={{ flex: 1 }}>{item.label}</span>
-              {item.badge != null && badgeVal !== 0 && (
-                <span style={{ background: item.badge === 'PREMIUM' ? PURPLE : '#ef4444', color: item.badge === 'PREMIUM' ? '#e9d5ff' : 'white', fontSize: item.badge === 'PREMIUM' ? 8 : 10, fontWeight: 600, padding: item.badge === 'PREMIUM' ? '2px 5px' : '1px 5px', borderRadius: 99 }}>
-                  {badgeVal}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
-
-      <div style={{ padding: '10px 12px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-        <button onClick={() => { localStorage.removeItem('mc_token'); localStorage.removeItem('mc_user'); router.push('/login'); }}
-          style={{ width: '100%', padding: '7px 10px', background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: 8, color: 'rgba(255,255,255,0.4)', fontSize: 12, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', textAlign: 'left' }}>
-          🚪 Sign out
-        </button>
-      </div>
-
-      {showProfile && (
-        <DoctorProfileModal
-          tokenFn={() => localStorage.getItem('mc_token') || ''}
-          onClose={() => setShowProfile(false)}
-          onSignOut={() => { localStorage.removeItem('mc_token'); localStorage.removeItem('mc_user'); router.push('/login'); }}
-        />
-      )}
-    </div>
-  );
-}
-
 function Sparkline({ points, color = BLUE, width = 160, height = 40 }) {
   if (!points || points.length < 2) return null;
   const vals = points.map(p => p.value), min = Math.min(...vals), max = Math.max(...vals), range = max - min || 1;
@@ -970,7 +852,7 @@ function DoctorReportReviewInner() {
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', fontFamily: 'DM Sans, sans-serif' }}>
       {aiFile && <AIModal fileId={aiFile.id} fileName={aiFile.fileName} medications={medications} tokenFn={token} onClose={() => setAiFile(null)} />}
-      <Sidebar active="doctorReports" />
+      <DoctorSidebar active="doctorReports" />
 
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', background: SURFACE }}>
 

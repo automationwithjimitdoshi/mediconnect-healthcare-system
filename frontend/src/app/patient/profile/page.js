@@ -3,6 +3,8 @@ export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import PatientSidebar from '@/components/PatientSidebar';
+import { getToken, getUser, clearSession } from '@/lib/auth';
 
 const C = {
   navy:      '#0c1a2e',
@@ -39,7 +41,7 @@ export default function PatientProfilePage() {
   // Form state — password
   const [pass, setPass] = useState({ current: '', next: '', confirm: '' });
 
-  const token    = () => localStorage.getItem('mc_token') || '';
+  const token    = () => getToken('PATIENT') || '';
   const showToast = (msg, ms = 3500) => { setToast(msg); setTimeout(() => setToast(''), ms); };
 
   // ── Load profile ────────────────────────────────────────────────────────────

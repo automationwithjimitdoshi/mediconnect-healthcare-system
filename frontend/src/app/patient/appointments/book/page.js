@@ -24,6 +24,8 @@ export const fetchCache = 'force-no-store';
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { getToken, getUser, clearSession } from '@/lib/auth';
+import PatientSidebar from '@/components/PatientSidebar';
 
 function getParam(name) {
   if (typeof window === 'undefined') return null;
@@ -48,60 +50,6 @@ const SPECIALTIES = [
   'Nephrology','Pulmonology','Neurology','Orthopedics','Dermatology',
   'Ophthalmology','ENT','Psychiatry','Gynaecology','Paediatrics',
 ];
-
-// ── Sidebar ───────────────────────────────────────────────────────────────────
-function Sidebar({ active }) {
-  const router = useRouter();
-  const [name, setName]   = useState('Patient');
-  const [inits, setInits] = useState('P');
-  useEffect(() => {
-    try {
-      const u = JSON.parse(localStorage.getItem('mc_user') || '{}');
-      const n = u?.patient ? `${u.patient.firstName||''} ${u.patient.lastName||''}`.trim() : (u?.email || 'Patient');
-      setName(n); setInits(n.split(' ').filter(Boolean).map(w=>w[0]).join('').slice(0,2).toUpperCase() || 'P');
-    } catch {}
-  }, []);
-  return (
-    <div style={{ width:220, background:NAVY, display:'flex', flexDirection:'column', flexShrink:0 }}>
-      <div style={{ padding:'20px 18px 14px', borderBottom:'1px solid rgba(255,255,255,0.08)' }}>
-        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-          <div style={{ width:32, height:32, background:BLUE, borderRadius:8, display:'flex', alignItems:'center', justifyContent:'center', position:'relative', flexShrink:0 }}>
-            <div style={{ position:'absolute', width:14, height:3, background:'white', borderRadius:2 }} />
-            <div style={{ position:'absolute', width:3, height:14, background:'white', borderRadius:2 }} />
-          </div>
-          <div>
-            <div style={{ fontSize:13, fontWeight:600, color:'white' }}>MediConnect AI</div>
-            <div style={{ fontSize:9, color:'rgba(255,255,255,0.3)', fontFamily:'monospace', letterSpacing:'0.1em' }}>PATIENT PORTAL</div>
-          </div>
-        </div>
-      </div>
-      <div style={{ margin:'10px 10px 6px', background:'rgba(255,255,255,0.06)', borderRadius:9, padding:'8px 10px', display:'flex', alignItems:'center', gap:8 }}>
-        <div style={{ width:30, height:30, borderRadius:'50%', background:BLUE_P, color:BLUE, display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, flexShrink:0 }}>{inits}</div>
-        <div style={{ flex:1, minWidth:0 }}>
-          <div suppressHydrationWarning style={{ fontSize:12, fontWeight:500, color:'white', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{name}</div>
-          <div style={{ fontSize:10, color:'rgba(255,255,255,0.4)' }}>Patient</div>
-        </div>
-      </div>
-      <div style={{ padding:'10px 18px 4px', fontSize:9, color:'rgba(255,255,255,0.25)', fontFamily:'monospace', letterSpacing:'0.12em' }}>MY HEALTH</div>
-      <div style={{ padding:'0 8px', flex:1 }}>
-        {NAV.map(item => { const isA = active===item.id; return (
-          <button className="mc-nav-btn" key={item.id} onClick={() => router.push(item.href)}
-            style={{ display:'flex', alignItems:'center', gap:10, width:'100%', padding:'9px 12px', margin:'2px 0', borderRadius:8, cursor:'pointer', border:'none', textAlign:'left', background:isA?BLUE:'transparent', color:isA?'white':'rgba(255,255,255,0.55)', fontSize:13, fontFamily:'DM Sans, sans-serif', fontWeight:isA?500:400 }}>
-            <span style={{ fontSize:14 }}>{item.icon}</span>
-            <span style={{ flex:1 }}>{item.label}</span>
-            {item.badge!=null && <span style={{ background:item.badge==='FREE'?'#0e7490':'#ef4444', color:'white', fontSize:item.badge==='FREE'?9:10, fontWeight:600, padding:item.badge==='FREE'?'2px 6px':'1px 5px', borderRadius:99 }}>{item.badge}</span>}
-          </button>
-        ); })}
-      </div>
-      <div style={{ padding:'10px 12px', borderTop:'1px solid rgba(255,255,255,0.08)' }}>
-        <button onClick={() => { localStorage.removeItem('mc_token'); localStorage.removeItem('mc_user'); router.push('/login'); }}
-          style={{ width:'100%', padding:'7px 10px', background:'rgba(255,255,255,0.05)', border:'none', borderRadius:8, color:'rgba(255,255,255,0.4)', fontSize:12, cursor:'pointer', fontFamily:'DM Sans, sans-serif', textAlign:'left' }}>
-          🚪 Sign out
-        </button>
-      </div>
-    </div>
-  );
-}
 
 // ── Step indicator ─────────────────────────────────────────────────────────────
 function Steps({ current }) {
@@ -235,14 +183,14 @@ function BookAppointmentPage() {
   const [user,     setUser]     = useState(null);
   const [booked,   setBooked]   = useState(null); // { appointmentId, order }
 
-  const token = useCallback(() => localStorage.getItem('mc_token') || '', []);
+  const token = useCallback(() => getToken('PATIENT') || '', []);
 
   const showToast = useCallback(msg => { setToast(msg); setTimeout(() => setToast(''), 4000); }, []);
 
   useEffect(() => {
     setMounted(true);
     const tok = localStorage.getItem('mc_token');
-    const u   = localStorage.getItem('mc_user');
+    const u   = JSON.stringify(getUser('PATIENT'));
     if (!tok) { router.push('/login'); return; }
     if (u) {
       try { const parsed = JSON.parse(u); if (parsed.role !== 'PATIENT') { router.push('/'); return; } }
@@ -467,7 +415,7 @@ function BookAppointmentPage() {
   
   return (
     <div style={{ display:'flex', height:'100vh', overflow:'hidden', fontFamily:'DM Sans, sans-serif' }}>
-      <Sidebar active="patientBook" />
+      <PatientSidebar active="patientBook" />
 
       <div style={{ flex:1, display:'flex', flexDirection:'column', overflow:'hidden' }}>
         <div style={{ flex:1, overflowY:'auto', padding:24, background:SURFACE }}>
