@@ -485,6 +485,7 @@ function Sidebar({ active }) {
   const [doctorName,  setDoctorName]  = useState('');
   const [specialty,   setSpecialty]   = useState('');
   const [moreOpen,    setMoreOpen]    = useState(false);
+  const [expanded,    setExpanded]    = useState(false); // JS hover fallback
 
   useEffect(() => {
     const tok = localStorage.getItem('mc_token') || '';
@@ -530,7 +531,12 @@ function Sidebar({ active }) {
   return (
     <>
       {/* ── Desktop / Tablet Sidebar ── */}
-      <div className="mc-sidebar">
+      <div
+        className="mc-sidebar"
+        data-expanded={expanded ? 'true' : 'false'}
+        onMouseEnter={() => setExpanded(true)}
+        onMouseLeave={() => setExpanded(false)}
+      >
 
         {/* Logo */}
         <div style={{ padding: '16px 0 12px', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
@@ -599,14 +605,14 @@ function Sidebar({ active }) {
           })}
         </div>
 
-        {/* Sign out — always visible, never pushed off screen */}
-        <div style={{ padding: '10px 6px', borderTop: '1px solid rgba(255,255,255,0.08)', flexShrink: 0 }}>
+        {/* Sign out — pinned to bottom, always visible */}
+        <div style={{ padding: '8px 6px 10px', borderTop: '1px solid rgba(255,255,255,0.08)', flexShrink: 0, background: NAVY }}>
           <button
             className="mc-nav-btn"
             onClick={signOut}
             style={{
               borderRadius: 8, background: 'rgba(255,255,255,0.04)',
-              color: 'rgba(255,255,255,0.45)', fontSize: 12,
+              color: 'rgba(255,255,255,0.5)', fontSize: 12,
               fontFamily: 'DM Sans, sans-serif',
             }}
           >
@@ -648,7 +654,7 @@ function Sidebar({ active }) {
         })}
       </nav>
 
-      {/* ── Mobile "More" Drawer ── */}
+      {/* ── Mobile "More" Drawer — scrollable, sign out always at bottom ── */}
       {moreOpen && (
         <div
           onClick={() => setMoreOpen(false)}
@@ -656,32 +662,37 @@ function Sidebar({ active }) {
         >
           <div
             onClick={e => e.stopPropagation()}
-            style={{ width: '100%', background: NAVY, borderRadius: '16px 16px 0 0', padding: '16px 0 32px', fontFamily: 'DM Sans, sans-serif' }}
+            style={{ width: '100%', background: NAVY, borderRadius: '16px 16px 0 0', paddingTop: 16, paddingBottom: 'env(safe-area-inset-bottom, 16px)', fontFamily: 'DM Sans, sans-serif', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}
           >
-            <div style={{ width: 36, height: 4, background: 'rgba(255,255,255,0.2)', borderRadius: 99, margin: '0 auto 16px' }} />
-            {/* Profile row */}
-            <button onClick={() => { setShowProfile(true); setMoreOpen(false); }}
-              style={{ display: 'flex', alignItems: 'center', gap: 14, width: '100%', padding: '13px 24px', background: 'none', border: 'none', color: 'white', fontSize: 15, fontWeight: 600, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>
-              <div style={{ width: 32, height: 32, borderRadius: '50%', background: TEAL_P, color: TEAL, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700 }}>{initials}</div>
-              {doctorName || 'Doctor'} — Edit Profile
-            </button>
-            <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', margin: '4px 0' }} />
-            {DOCTOR_NAV.map(item => {
-              const isA = active === item.id;
-              return (
-                <button key={item.id} onClick={() => { router.push(item.href); setMoreOpen(false); }}
-                  style={{ display: 'flex', alignItems: 'center', gap: 14, width: '100%', padding: '13px 24px', background: 'none', border: 'none', color: isA ? 'white' : 'rgba(255,255,255,0.7)', fontSize: 15, fontWeight: isA ? 600 : 400, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>
-                  <span style={{ fontSize: 20, width: 24, textAlign: 'center' }}>{item.icon}</span>
-                  {item.label}
-                </button>
-              );
-            })}
-            <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', margin: '8px 0 0' }} />
-            <button onClick={signOut}
-              style={{ display: 'flex', alignItems: 'center', gap: 14, width: '100%', padding: '13px 24px', background: 'none', border: 'none', color: 'rgba(255,255,255,0.45)', fontSize: 15, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>
-              <span style={{ fontSize: 20, width: 24, textAlign: 'center' }}>🚪</span>
-              Sign out
-            </button>
+            <div style={{ width: 36, height: 4, background: 'rgba(255,255,255,0.2)', borderRadius: 99, margin: '0 auto 12px' }} />
+            {/* Scrollable nav list */}
+            <div style={{ flex: 1, overflowY: 'auto' }}>
+              {/* Profile row */}
+              <button onClick={() => { setShowProfile(true); setMoreOpen(false); }}
+                style={{ display: 'flex', alignItems: 'center', gap: 14, width: '100%', padding: '13px 24px', background: 'none', border: 'none', color: 'white', fontSize: 15, fontWeight: 600, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>
+                <div style={{ width: 32, height: 32, borderRadius: '50%', background: TEAL_P, color: TEAL, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700 }}>{initials}</div>
+                {doctorName || 'Doctor'} — Edit Profile
+              </button>
+              <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', margin: '4px 0' }} />
+              {DOCTOR_NAV.map(item => {
+                const isA = active === item.id;
+                return (
+                  <button key={item.id} onClick={() => { router.push(item.href); setMoreOpen(false); }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 14, width: '100%', padding: '13px 24px', background: 'none', border: 'none', color: isA ? 'white' : 'rgba(255,255,255,0.7)', fontSize: 15, fontWeight: isA ? 600 : 400, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>
+                    <span style={{ fontSize: 22, width: 28, textAlign: 'center' }}>{item.icon}</span>
+                    {item.label}
+                  </button>
+                );
+              })}
+            </div>
+            {/* Sign out — always pinned at bottom of drawer */}
+            <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', flexShrink: 0 }}>
+              <button onClick={signOut}
+                style={{ display: 'flex', alignItems: 'center', gap: 14, width: '100%', padding: '14px 24px', background: 'none', border: 'none', color: 'rgba(255,255,255,0.6)', fontSize: 15, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>
+                <span style={{ fontSize: 22, width: 28, textAlign: 'center' }}>🚪</span>
+                Sign out
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -1291,13 +1302,33 @@ export default function DoctorDashboard() {
 
   useEffect(() => {
     setMounted(true);
-    const u = localStorage.getItem('mc_user');
-    if (!u) { window.location.href = '/login'; return; }
-    const parsed = JSON.parse(u);
+    const tok = token();
+    const u   = localStorage.getItem('mc_user');
+
+    // No token → redirect
+    if (!tok) { window.location.href = '/login'; return; }
+
+    // Parse user gracefully
+    let parsed = null;
+    try { parsed = JSON.parse(u || '{}'); } catch { parsed = null; }
+    if (!parsed) { window.location.href = '/login'; return; }
     if (parsed.role !== 'DOCTOR') { window.location.href = '/patient'; return; }
     setUser(parsed);
 
-    const headers = { Authorization: `Bearer ${token()}` };
+    const headers = { Authorization: `Bearer ${tok}` };
+
+    // Verify token is still valid — only redirect on confirmed 401/403
+    fetch(`${API}/auth/me`, { headers })
+      .then(r => {
+        if (r.status === 401 || r.status === 403) {
+          localStorage.removeItem('mc_token');
+          localStorage.removeItem('mc_user');
+          window.location.href = '/login';
+          return null;
+        }
+        return r.ok ? r.json() : null;
+      })
+      .catch(() => null); // network error → stay on page
 
     fetch(`${API}/appointments`, { headers }).then(r => r.json())
       .then(d => { setAppts(d.data || d.appointments || []); }).catch(() => {}).finally(() => setLoading(false));

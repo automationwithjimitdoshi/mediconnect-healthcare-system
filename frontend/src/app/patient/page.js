@@ -59,7 +59,9 @@ function Sidebar({ active }) {
   const [chatBadge, setChatBadge] = useState(0);
   const [name, setName] = useState('Patient');
   const [inits, setInits] = useState('P');
-  const [moreOpen, setMoreOpen] = useState(false); // mobile "More" drawer
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [expanded, setExpanded] = useState(false); // JS fallback for hover
+  const sidebarRef = React.useRef(null);
 
   useEffect(() => {
     const tok = localStorage.getItem('mc_token') || '';
@@ -78,7 +80,7 @@ function Sidebar({ active }) {
       const n = u?.patient
         ? `${u.patient.firstName || ''} ${u.patient.lastName || ''}`.trim()
         : (u?.email || 'Patient');
-      setName(n);
+      setName(n || 'Patient');
       setInits(n.split(' ').filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase() || 'P');
     } catch {}
   }, []);
@@ -92,7 +94,13 @@ function Sidebar({ active }) {
   return (
     <>
       {/* ── Desktop / Tablet Sidebar ── */}
-      <div className="mc-sidebar">
+      <div
+        className="mc-sidebar"
+        ref={sidebarRef}
+        data-expanded={expanded ? 'true' : 'false'}
+        onMouseEnter={() => setExpanded(true)}
+        onMouseLeave={() => setExpanded(false)}
+      >
 
         {/* Logo */}
         <div style={{ padding: '16px 0 12px', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
@@ -109,18 +117,18 @@ function Sidebar({ active }) {
         </div>
 
         {/* Avatar */}
-        <div style={{ margin: '10px 6px 6px', background: 'rgba(255,255,255,0.06)', borderRadius: 9, padding: '8px 6px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-          <div style={{ width: 30, height: 30, borderRadius: '50%', background: BLUE_P, color: BLUE, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{inits}</div>
+        <div style={{ margin: '8px 6px 4px', background: 'rgba(255,255,255,0.06)', borderRadius: 9, padding: '7px 6px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+          <div style={{ width: 28, height: 28, borderRadius: '50%', background: BLUE_P, color: BLUE, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{inits}</div>
           <div className="mc-user-info" style={{ flex: 1, minWidth: 0 }}>
             <div suppressHydrationWarning style={{ fontSize: 12, fontWeight: 500, color: 'white', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</div>
             <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>Patient</div>
           </div>
         </div>
 
-        {/* Section divider — always visible, no hide class */}
-        <div style={{ padding: '10px 0 4px', fontSize: 9, color: 'rgba(255,255,255,0.25)', fontFamily: 'monospace', letterSpacing: '0.12em', textAlign: 'center', flexShrink: 0 }}>· · ·</div>
+        {/* Section divider */}
+        <div style={{ height: 1, background: 'rgba(255,255,255,0.06)', margin: '4px 8px 4px' }} />
 
-        {/* Nav items */}
+        {/* Nav items — scrollable, sign out always below */}
         <div style={{ padding: '0 6px', flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
           {NAV.map(item => {
             const isA = active === item.id;
@@ -130,7 +138,7 @@ function Sidebar({ active }) {
                 key={item.id}
                 onClick={() => router.push(item.href)}
                 style={{
-                  margin: '2px 0', borderRadius: 8,
+                  margin: '1px 0', borderRadius: 8,
                   background: isA ? BLUE : 'transparent',
                   color: isA ? 'white' : 'rgba(255,255,255,0.6)',
                   fontSize: 13, fontFamily: 'DM Sans, sans-serif',
@@ -153,14 +161,14 @@ function Sidebar({ active }) {
           })}
         </div>
 
-        {/* Sign out — always visible at bottom */}
-        <div style={{ padding: '10px 6px', borderTop: '1px solid rgba(255,255,255,0.08)', flexShrink: 0 }}>
+        {/* Sign out — pinned to bottom, always visible */}
+        <div style={{ padding: '8px 6px 10px', borderTop: '1px solid rgba(255,255,255,0.08)', flexShrink: 0, background: NAVY }}>
           <button
             className="mc-nav-btn"
             onClick={signOut}
             style={{
               borderRadius: 8, background: 'rgba(255,255,255,0.04)',
-              color: 'rgba(255,255,255,0.45)', fontSize: 12,
+              color: 'rgba(255,255,255,0.5)', fontSize: 12,
               fontFamily: 'DM Sans, sans-serif',
             }}
           >
@@ -175,7 +183,6 @@ function Sidebar({ active }) {
       <nav className="mc-bottom-nav">
         {BOTTOM_NAV.map(item => {
           if (item.href === null) {
-            // "More" button — opens drawer
             return (
               <button key={item.id} className="mc-bottom-nav-btn" onClick={() => setMoreOpen(true)}>
                 <span>{item.icon}</span>
@@ -189,6 +196,7 @@ function Sidebar({ active }) {
               key={item.id}
               className={`mc-bottom-nav-btn${isA ? ' active' : ''}`}
               onClick={() => router.push(item.href)}
+              style={{ position: 'relative' }}
             >
               <span>{item.icon}</span>
               <span>{item.label}</span>
@@ -202,7 +210,7 @@ function Sidebar({ active }) {
         })}
       </nav>
 
-      {/* ── Mobile "More" Drawer ── */}
+      {/* ── Mobile "More" Drawer — scrollable, sign out always at bottom ── */}
       {moreOpen && (
         <div
           onClick={() => setMoreOpen(false)}
@@ -210,26 +218,30 @@ function Sidebar({ active }) {
         >
           <div
             onClick={e => e.stopPropagation()}
-            style={{ width: '100%', background: NAVY, borderRadius: '16px 16px 0 0', padding: '16px 0 32px', fontFamily: 'DM Sans, sans-serif' }}
+            style={{ width: '100%', background: NAVY, borderRadius: '16px 16px 0 0', paddingTop: 16, paddingBottom: 'env(safe-area-inset-bottom, 16px)', fontFamily: 'DM Sans, sans-serif', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}
           >
-            <div style={{ width: 36, height: 4, background: 'rgba(255,255,255,0.2)', borderRadius: 99, margin: '0 auto 16px' }} />
-            {/* All nav items */}
-            {NAV.map(item => {
-              const isA = active === item.id;
-              return (
-                <button key={item.id} onClick={() => { router.push(item.href); setMoreOpen(false); }}
-                  style={{ display: 'flex', alignItems: 'center', gap: 14, width: '100%', padding: '13px 24px', background: 'none', border: 'none', color: isA ? 'white' : 'rgba(255,255,255,0.7)', fontSize: 15, fontWeight: isA ? 600 : 400, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>
-                  <span style={{ fontSize: 20, width: 24, textAlign: 'center' }}>{item.icon}</span>
-                  {item.label}
-                </button>
-              );
-            })}
-            <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', margin: '8px 0 0' }} />
-            <button onClick={signOut}
-              style={{ display: 'flex', alignItems: 'center', gap: 14, width: '100%', padding: '13px 24px', background: 'none', border: 'none', color: 'rgba(255,255,255,0.45)', fontSize: 15, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>
-              <span style={{ fontSize: 20, width: 24, textAlign: 'center' }}>🚪</span>
-              Sign out
-            </button>
+            <div style={{ width: 36, height: 4, background: 'rgba(255,255,255,0.2)', borderRadius: 99, margin: '0 auto 12px' }} />
+            {/* Scrollable nav list */}
+            <div style={{ flex: 1, overflowY: 'auto' }}>
+              {NAV.map(item => {
+                const isA = active === item.id;
+                return (
+                  <button key={item.id} onClick={() => { router.push(item.href); setMoreOpen(false); }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 14, width: '100%', padding: '13px 24px', background: 'none', border: 'none', color: isA ? 'white' : 'rgba(255,255,255,0.7)', fontSize: 15, fontWeight: isA ? 600 : 400, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>
+                    <span style={{ fontSize: 22, width: 28, textAlign: 'center' }}>{item.icon}</span>
+                    {item.label}
+                  </button>
+                );
+              })}
+            </div>
+            {/* Sign out — always pinned at bottom of drawer */}
+            <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', flexShrink: 0 }}>
+              <button onClick={signOut}
+                style={{ display: 'flex', alignItems: 'center', gap: 14, width: '100%', padding: '14px 24px', background: 'none', border: 'none', color: 'rgba(255,255,255,0.6)', fontSize: 15, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>
+                <span style={{ fontSize: 22, width: 28, textAlign: 'center' }}>🚪</span>
+                Sign out
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -795,14 +807,47 @@ export default function PatientDashboard() {
 
   const token = useCallback(() => localStorage.getItem('mc_token') || '', []);
 
+  // ── Validate session — only redirect after full client mount ──────────────
+  // Never call window.location.href during SSR/hydration; wait for useEffect.
   useEffect(() => {
     setMounted(true);
     const tok = localStorage.getItem('mc_token');
-    const u = localStorage.getItem('mc_user');
+    const u   = localStorage.getItem('mc_user');
+
+    // No token at all → go to login
     if (!tok) { window.location.href = '/login'; return; }
-    if (u) { try { setUser(JSON.parse(u)); } catch { } }
+
+    // Parse user from storage — catch corrupt data gracefully
+    let parsedUser = null;
+    try { parsedUser = JSON.parse(u || '{}'); } catch { parsedUser = null; }
+    if (parsedUser) setUser(parsedUser);
 
     const headers = { Authorization: `Bearer ${tok}` };
+
+    // Verify token is still valid before fetching data
+    fetch(`${API}/auth/me`, { headers })
+      .then(r => {
+        if (r.status === 401 || r.status === 403) {
+          // Token expired or revoked — clear and redirect
+          localStorage.removeItem('mc_token');
+          localStorage.removeItem('mc_user');
+          window.location.href = '/login';
+          return null;
+        }
+        return r.ok ? r.json() : null;
+      })
+      .then(me => {
+        if (!me) return;
+        // Refresh user from server in case it changed
+        if (me.user || me.data) {
+          const fresh = me.user || me.data;
+          const stored = { ...parsedUser, ...fresh };
+          setUser(stored);
+          try { localStorage.setItem('mc_user', JSON.stringify(stored)); } catch {}
+        }
+      })
+      .catch(() => {}); // network error — don't logout, just continue
+
     Promise.all([
       fetch(`${API}/appointments`, { headers }).then(r => r.json()).catch(() => ({})),
       fetch(`${API}/appointments/upcoming`, { headers }).then(r => r.json()).catch(() => ({})),
