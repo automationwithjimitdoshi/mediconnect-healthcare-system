@@ -485,7 +485,6 @@ function Sidebar({ active }) {
   const [doctorName,  setDoctorName]  = useState('');
   const [specialty,   setSpecialty]   = useState('');
   const [moreOpen,    setMoreOpen]    = useState(false);
-  const [expanded,    setExpanded]    = useState(false); // JS hover fallback
 
   useEffect(() => {
     const tok = localStorage.getItem('mc_token') || '';
@@ -531,12 +530,7 @@ function Sidebar({ active }) {
   return (
     <>
       {/* ── Desktop / Tablet Sidebar ── */}
-      <div
-        className="mc-sidebar"
-        data-expanded={expanded ? 'true' : 'false'}
-        onMouseEnter={() => setExpanded(true)}
-        onMouseLeave={() => setExpanded(false)}
-      >
+      <div className="mc-sidebar">
 
         {/* Logo */}
         <div style={{ padding: '16px 0 12px', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>

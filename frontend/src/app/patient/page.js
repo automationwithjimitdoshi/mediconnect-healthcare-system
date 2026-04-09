@@ -60,8 +60,6 @@ function Sidebar({ active }) {
   const [name, setName] = useState('Patient');
   const [inits, setInits] = useState('P');
   const [moreOpen, setMoreOpen] = useState(false);
-  const [expanded, setExpanded] = useState(false); // JS fallback for hover
-  const sidebarRef = React.useRef(null);
 
   useEffect(() => {
     const tok = localStorage.getItem('mc_token') || '';
@@ -94,13 +92,7 @@ function Sidebar({ active }) {
   return (
     <>
       {/* ── Desktop / Tablet Sidebar ── */}
-      <div
-        className="mc-sidebar"
-        ref={sidebarRef}
-        data-expanded={expanded ? 'true' : 'false'}
-        onMouseEnter={() => setExpanded(true)}
-        onMouseLeave={() => setExpanded(false)}
-      >
+      <div className="mc-sidebar">
 
         {/* Logo */}
         <div style={{ padding: '16px 0 12px', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
