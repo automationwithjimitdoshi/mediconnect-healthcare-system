@@ -4,7 +4,6 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  // Use standalone output for better compatibility
   output: 'export',
   // Disable static optimization for pages using client-side APIs
   experimental: {
