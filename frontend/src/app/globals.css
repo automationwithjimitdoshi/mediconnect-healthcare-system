@@ -22,18 +22,12 @@ body {
 
 /* ── Page transition fade ───────────────────────────────────────────────────── */
 #__next_page {
-  animation: mc-page-in 0.1s ease-out both;
+  animation: mc-page-in 0.1s ease-out forwards;
 }
 
 @keyframes mc-page-in {
   from { opacity: 0; }
   to   { opacity: 1; }
-}
-
-/* ── Navigation sidebar — stable background so it never flashes ─────────────── */
-/* The sidebar background matches NAVY so there's no white gap during transition */
-body > div > div > div:first-child {
-  background: #0c1a2e;
 }
 
 /* ── Smooth interactive elements ─────────────────────────────────────────────── */
@@ -132,11 +126,16 @@ html {
   background: #94a3b8;
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   MEDICONNECT — PAGE TRANSITIONS & COLLAPSIBLE SIDEBAR
-   ═══════════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════════════════════
+   MEDICONNECT — RESPONSIVE LAYOUT, PAGE TRANSITIONS & ADAPTIVE SIDEBAR
+   ───────────────────────────────────────────────────────────────────────────────
+   Breakpoints:
+     Mobile  : < 640px  → sidebar HIDDEN, bottom tab bar shown
+     Tablet  : 640–1023px → sidebar icon-only (52px), NO hover expand
+     Desktop : ≥ 1024px → sidebar icon-only (60px), HOVER to expand (220px)
+   ═══════════════════════════════════════════════════════════════════════════════ */
 
-/* 1. Prevent white flash — html and body always have background */
+/* ── 1. Prevent white flash ─────────────────────────────────────────────────── */
 html {
   background: #0c1a2e !important;
 }
@@ -145,81 +144,278 @@ body {
   background-image: linear-gradient(90deg, #0c1a2e 60px, #f7f9fc 60px) !important;
   margin: 0 !important;
 }
+/* On mobile, no sidebar — body is plain surface colour */
+@media (max-width: 639px) {
+  body {
+    background-image: none !important;
+    background: #f7f9fc !important;
+  }
+}
 
-/* 2. Page fade-in on every navigation — opacity only, NO translateY (causes blink) */
+/* ── 2. Page fade-in — opacity only, runs ONCE on mount, not on state re-renders */
 #__mc_page {
-  animation: mc-fade 0.1s ease-out both;
+  animation: mc-fade 0.1s ease-out forwards;
+  animation-iteration-count: 1;
 }
 @keyframes mc-fade {
   from { opacity: 0; }
   to   { opacity: 1; }
 }
 
-/* 3. Collapsible sidebar — collapsed by default (60px), expands on hover */
-.mc-sidebar {
-  width: 60px !important;
-  min-width: 60px !important;
-  max-width: 60px !important;
-  transition: width 0.22s cubic-bezier(0.4,0,0.2,1),
-              min-width 0.22s cubic-bezier(0.4,0,0.2,1),
-              max-width 0.22s cubic-bezier(0.4,0,0.2,1) !important;
-  overflow: hidden !important;
-  will-change: width !important;
-}
-.mc-sidebar:hover {
-  width: 220px !important;
-  min-width: 220px !important;
-  max-width: 220px !important;
+/* ── 3. App shell — full-height flex row ────────────────────────────────────── */
+.mc-app-shell {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+  font-family: 'DM Sans', sans-serif;
 }
 
-/* 4. Hide text until expanded */
+/* ── 4. SIDEBAR — desktop default (icon-only, hover to expand) ──────────────── */
+.mc-sidebar {
+  width: 60px;
+  min-width: 60px;
+  max-width: 60px;
+  height: 100vh;
+  background: #0c1a2e;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  overflow: hidden;
+  position: relative;
+  z-index: 50;
+  transition:
+    width     0.22s cubic-bezier(0.4, 0, 0.2, 1),
+    min-width 0.22s cubic-bezier(0.4, 0, 0.2, 1),
+    max-width 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: width;
+}
+
+/* Desktop hover — expand to full width */
+@media (hover: hover) and (min-width: 1024px) {
+  .mc-sidebar:hover {
+    width: 220px;
+    min-width: 220px;
+    max-width: 220px;
+  }
+}
+
+/* Tablet — slightly narrower icon bar, no hover expand */
+@media (min-width: 640px) and (max-width: 1023px) {
+  .mc-sidebar {
+    width: 52px;
+    min-width: 52px;
+    max-width: 52px;
+  }
+  body {
+    background-image: linear-gradient(90deg, #0c1a2e 52px, #f7f9fc 52px) !important;
+  }
+}
+
+/* Mobile — sidebar hidden entirely, replaced by bottom nav */
+@media (max-width: 639px) {
+  .mc-sidebar {
+    display: none !important;
+  }
+}
+
+/* ── 5. Text labels — hidden when collapsed, shown on hover (desktop only) ──── */
 .mc-nav-label,
 .mc-logo-text,
 .mc-user-info,
 .mc-section-label,
 .mc-signout-text {
-  opacity: 0 !important;
-  width: 0 !important;
-  overflow: hidden !important;
-  transition: opacity 0.15s ease 0.05s !important;
-  white-space: nowrap !important;
-  pointer-events: none !important;
+  opacity: 0;
+  max-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  pointer-events: none;
+  transition: opacity 0.15s ease 0.05s, max-width 0.15s ease 0.05s;
+  flex-shrink: 0;
 }
-.mc-sidebar:hover .mc-nav-label,
-.mc-sidebar:hover .mc-logo-text,
-.mc-sidebar:hover .mc-user-info,
-.mc-sidebar:hover .mc-section-label,
-.mc-sidebar:hover .mc-signout-text {
-  opacity: 1 !important;
-  width: auto !important;
-  pointer-events: auto !important;
+/* Only reveal on hover for devices that support hover (desktop) */
+@media (hover: hover) and (min-width: 1024px) {
+  .mc-sidebar:hover .mc-nav-label,
+  .mc-sidebar:hover .mc-logo-text,
+  .mc-sidebar:hover .mc-user-info,
+  .mc-sidebar:hover .mc-section-label,
+  .mc-sidebar:hover .mc-signout-text {
+    opacity: 1;
+    max-width: 200px;
+    pointer-events: auto;
+  }
 }
 
-/* 5. Keep icons always visible and centered */
+/* ── 6. Icons — always visible, always centred ──────────────────────────────── */
 .mc-nav-icon {
-  flex-shrink: 0 !important;
-  width: 20px !important;
-  text-align: center !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
+  flex-shrink: 0;
+  width: 22px;
+  min-width: 22px;
+  text-align: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
 }
 
-/* 6. Nav buttons align icons center when collapsed */
+/* ── 7. Nav buttons ─────────────────────────────────────────────────────────── */
 .mc-nav-btn {
   display: flex !important;
   align-items: center !important;
-  justify-content: flex-start !important;
+  justify-content: center !important;   /* icon centred when collapsed */
   gap: 10px !important;
   width: 100% !important;
   white-space: nowrap !important;
+  padding: 10px 0 !important;
+  border: none !important;
+  background: transparent !important;
+  cursor: pointer !important;
+  border-radius: 8px !important;
+  transition: background 0.15s !important;
+}
+/* When sidebar is expanded (hover), left-align content */
+@media (hover: hover) and (min-width: 1024px) {
+  .mc-sidebar:hover .mc-nav-btn {
+    justify-content: flex-start !important;
+    padding: 9px 12px !important;
+  }
 }
 
-/* 7. Smooth scrollbar */
-::-webkit-scrollbar { width: 5px; height: 5px; }
+/* ── 8. Main content area ───────────────────────────────────────────────────── */
+.mc-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0; /* prevent flex overflow */
+}
+
+/* On mobile, add bottom padding so content isn't hidden behind bottom nav */
+@media (max-width: 639px) {
+  .mc-main {
+    padding-bottom: 60px;
+  }
+}
+
+/* ── 9. BOTTOM NAV — mobile only ────────────────────────────────────────────── */
+.mc-bottom-nav {
+  display: none;
+}
+@media (max-width: 639px) {
+  .mc-bottom-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 60px;
+    background: #0c1a2e;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    z-index: 100;
+    align-items: stretch;
+  }
+  .mc-bottom-nav-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: rgba(255,255,255,0.5);
+    font-size: 10px;
+    font-family: 'DM Sans', sans-serif;
+    padding: 6px 4px;
+    transition: color 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .mc-bottom-nav-btn.active {
+    color: white;
+  }
+  .mc-bottom-nav-btn span:first-child {
+    font-size: 20px;
+    line-height: 1;
+  }
+}
+
+/* ── 10. Responsive content grid helpers ────────────────────────────────────── */
+
+/* Stats grid: 3-col on desktop, 2-col on tablet, 1-col on mobile */
+.mc-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+@media (max-width: 1023px) {
+  .mc-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 639px) {
+  .mc-stats-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+}
+
+/* Quick actions: 4-col → 2-col → 2-col */
+.mc-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+@media (max-width: 1023px) {
+  .mc-actions-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Card padding responsive */
+.mc-card {
+  background: white;
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  padding: 18px 20px;
+}
+@media (max-width: 639px) {
+  .mc-card {
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+}
+
+/* Content area padding */
+.mc-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+  background: #f7f9fc;
+  -webkit-overflow-scrolling: touch; /* smooth scroll on iOS/Android */
+}
+@media (max-width: 1023px) {
+  .mc-content {
+    padding: 16px;
+  }
+}
+@media (max-width: 639px) {
+  .mc-content {
+    padding: 12px;
+  }
+}
+
+/* ── 11. Typography scale — smaller on mobile ───────────────────────────────── */
+@media (max-width: 639px) {
+  .mc-page-title  { font-size: 18px !important; }
+  .mc-page-sub    { font-size: 12px !important; }
+}
+
+/* ── 12. Scrollbar styling ──────────────────────────────────────────────────── */
+::-webkit-scrollbar       { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
 ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
-/* 8. Spinner */
+/* ── 13. Spinner ────────────────────────────────────────────────────────────── */
 @keyframes spin { to { transform: rotate(360deg); } }

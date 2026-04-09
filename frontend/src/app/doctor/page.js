@@ -468,79 +468,231 @@ function DoctorProfileModal({ onClose, tokenFn, onSignOut }) {
   );
 }
 
+// ── Doctor bottom nav (mobile) ────────────────────────────────────────────────
+const DOCTOR_BOTTOM_NAV = [
+  { id: 'doctorDashboard', label: 'Home',     icon: '⊞', href: '/doctor'              },
+  { id: 'doctorAppts',     label: 'Appts',    icon: '📅', href: '/doctor/appointments' },
+  { id: 'doctorChat',      label: 'Chat',     icon: '💬', href: '/doctor/chat'         },
+  { id: 'doctorReports',   label: 'Reports',  icon: '🔬', href: '/doctor/reports'      },
+  { id: 'doctorMore',      label: 'More',     icon: '☰',  href: null                   },
+];
+
 function Sidebar({ active }) {
   const router = useRouter();
-  const [showProfile,setShowProfile]=useState(false);
-  const [chatBadge,  setChatBadge]  = useState(0);
-  const [alertBadge, setAlertBadge] = useState(0);
+  const [showProfile, setShowProfile] = useState(false);
+  const [chatBadge,   setChatBadge]   = useState(0);
+  const [alertBadge,  setAlertBadge]  = useState(0);
+  const [doctorName,  setDoctorName]  = useState('');
+  const [specialty,   setSpecialty]   = useState('');
+  const [moreOpen,    setMoreOpen]    = useState(false);
+
   useEffect(() => {
     const tok = localStorage.getItem('mc_token') || '';
     if (!tok) return;
     const h = { Authorization: `Bearer ${tok}` };
-    // Unread chat count
-    fetch(`${API}/chat/rooms?limit=100`, {headers:h}).then(r=>r.ok?r.json():null)
+    fetch(`${API}/chat/rooms?limit=100`, { headers: h }).then(r => r.ok ? r.json() : null)
       .then(d => {
-        const total = (d?.data||[]).reduce((sum,r) => sum + (r.unreadCount||0), 0);
+        const total = (d?.data || []).reduce((sum, r) => sum + (r.unreadCount || 0), 0);
         setChatBadge(total);
-      }).catch(()=>{});
-    // Alert count
-    fetch(`${API}/cdss/alerts`, {headers:h}).then(r=>r.ok?r.json():null)
-      .then(d => setAlertBadge((d?.data||d?.alerts||[]).length))
-      .catch(()=>{});
+      }).catch(() => {});
+    fetch(`${API}/cdss/alerts`, { headers: h }).then(r => r.ok ? r.json() : null)
+      .then(d => setAlertBadge((d?.data || d?.alerts || []).length))
+      .catch(() => {});
   }, []);
-  const [doctorName, setDoctorName] = useState('');
-  const [specialty,  setSpecialty]  = useState('');
+
   useEffect(() => {
     try {
       const u = JSON.parse(localStorage.getItem('mc_user') || '{}');
-      if (u?.doctor) { setDoctorName(`Dr. ${u.doctor.firstName || ''} ${u.doctor.lastName || ''}`.trim()); setSpecialty(u.doctor.specialty || 'Doctor'); }
-      else { setDoctorName(u?.email || 'Doctor'); setSpecialty('Doctor Portal'); }
+      if (u?.doctor) {
+        setDoctorName(`Dr. ${u.doctor.firstName || ''} ${u.doctor.lastName || ''}`.trim());
+        setSpecialty(u.doctor.specialty || 'Doctor');
+      } else {
+        setDoctorName(u?.email || 'Doctor');
+        setSpecialty('Doctor Portal');
+      }
     } catch {}
   }, []);
+
   const initials = doctorName.split(' ').filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase() || 'DR';
+
+  function signOut() {
+    localStorage.removeItem('mc_token');
+    localStorage.removeItem('mc_user');
+    window.location.href = '/login';
+  }
+
+  function getBadgeValue(item) {
+    if (item.badge === '_chat')   return chatBadge;
+    if (item.badge === '_alerts') return alertBadge;
+    return item.badge;
+  }
+
   return (
-    <div className="mc-sidebar" style={{ width: 220, background: NAVY, display: 'flex', flexDirection: 'column', flexShrink: 0, overflow: 'hidden' }}>
-      <div style={{ padding: '20px 18px 14px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+    <>
+      {/* ── Desktop / Tablet Sidebar ── */}
+      <div className="mc-sidebar">
+
+        {/* Logo */}
+        <div style={{ padding: '16px 0 12px', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
           <div style={{ width: 32, height: 32, background: BLUE, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', flexShrink: 0 }}>
             <div style={{ position: 'absolute', width: 14, height: 3, background: 'white', borderRadius: 2 }} />
             <div style={{ position: 'absolute', width: 3, height: 14, background: 'white', borderRadius: 2 }} />
           </div>
-          <div><div style={{ fontSize: 13, fontWeight: 600, color: 'white' }}>MediConnect <span className="mc-logo-text">AI</span></div><div className="mc-section-label" style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', fontFamily: 'monospace', letterSpacing: '0.1em' }}>DOCTOR PORTAL</div></div>
+          <div style={{ minWidth: 0 }}>
+            <div className="mc-logo-text" style={{ fontSize: 13, fontWeight: 600, color: 'white' }}>MediConnect AI</div>
+            <div className="mc-logo-text" style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', fontFamily: 'monospace', letterSpacing: '0.1em' }}>DOCTOR PORTAL</div>
+          </div>
         </div>
+
+        {/* Avatar — clickable to open profile */}
+        <div
+          onClick={() => setShowProfile(true)}
+          title="View/Edit Profile"
+          style={{ cursor: 'pointer', margin: '10px 6px 6px', background: 'rgba(255,255,255,0.06)', borderRadius: 9, padding: '8px 6px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+        >
+          <div style={{ width: 30, height: 30, borderRadius: '50%', background: TEAL_P, color: TEAL, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{initials}</div>
+          <div className="mc-user-info" style={{ flex: 1, minWidth: 0 }}>
+            <div suppressHydrationWarning style={{ fontSize: 12, fontWeight: 500, color: 'white', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doctorName || 'Doctor'}</div>
+            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>{specialty}</div>
+          </div>
+        </div>
+
+        {/* Section label */}
+        <div className="mc-section-label" style={{ padding: '8px 0 4px', fontSize: 9, color: 'rgba(255,255,255,0.25)', fontFamily: 'monospace', letterSpacing: '0.12em', textAlign: 'center' }}>CLINICAL</div>
+
+        {/* Nav items — flex:1 + overflowY:auto ensures sign out is always visible */}
+        <div style={{ padding: '0 6px', flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
+          {DOCTOR_NAV.map(item => {
+            const isA = active === item.id;
+            const badgeVal = getBadgeValue(item);
+            return (
+              <button
+                className="mc-nav-btn"
+                key={item.id}
+                onClick={() => router.push(item.href)}
+                style={{
+                  margin: '2px 0', borderRadius: 8,
+                  background: isA ? BLUE : 'transparent',
+                  color: isA ? 'white' : 'rgba(255,255,255,0.6)',
+                  fontSize: 13, fontFamily: 'DM Sans, sans-serif',
+                  fontWeight: isA ? 600 : 400, transition: 'background 0.12s',
+                }}
+              >
+                <span className="mc-nav-icon">{item.icon}</span>
+                <span className="mc-nav-label" style={{ flex: 1, textAlign: 'left' }}>{item.label}</span>
+                {item.badge != null && badgeVal !== 0 && (
+                  <span className="mc-nav-label" style={{
+                    background: item.badge === 'PREMIUM' ? PURPLE : '#ef4444',
+                    color: item.badge === 'PREMIUM' ? '#e9d5ff' : 'white',
+                    fontSize: item.badge === 'PREMIUM' ? 8 : 10,
+                    fontWeight: 700,
+                    padding: item.badge === 'PREMIUM' ? '2px 5px' : '1px 5px',
+                    borderRadius: 99, flexShrink: 0,
+                  }}>
+                    {badgeVal}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Sign out — always visible, never pushed off screen */}
+        <div style={{ padding: '10px 6px', borderTop: '1px solid rgba(255,255,255,0.08)', flexShrink: 0 }}>
+          <button
+            className="mc-nav-btn"
+            onClick={signOut}
+            style={{
+              borderRadius: 8, background: 'rgba(255,255,255,0.04)',
+              color: 'rgba(255,255,255,0.45)', fontSize: 12,
+              fontFamily: 'DM Sans, sans-serif',
+            }}
+          >
+            <span className="mc-nav-icon">🚪</span>
+            <span className="mc-signout-text">Sign out</span>
+          </button>
+        </div>
+
       </div>
-      <div onClick={()=>setShowProfile(true)} title="View/Edit Profile" style={{ cursor: "pointer", margin: '10px 10px 6px', background: 'rgba(255,255,255,0.06)', borderRadius: 9, padding: '8px 10px', display: 'flex', alignItems: 'center', gap: 8 }}>
-        <div style={{ width: 30, height: 30, borderRadius: '50%', background: TEAL_P, color: TEAL, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{initials}</div>
-        <div style={{ flex: 1, minWidth: 0 }}><div suppressHydrationWarning style={{ fontSize: 12, fontWeight: 500, color: 'white', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doctorName || 'Doctor'}</div><div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>{specialty}</div></div>
-      </div>
-      <div style={{ padding: '10px 18px 4px', fontSize: 9, color: 'rgba(255,255,255,0.25)', fontFamily: 'monospace', letterSpacing: '0.12em' }}>CLINICAL</div>
-      <div style={{ padding: '0 8px', flex: 1 }}>
-        {DOCTOR_NAV.map(item => {
+
+      {/* ── Mobile Bottom Navigation ── */}
+      <nav className="mc-bottom-nav">
+        {DOCTOR_BOTTOM_NAV.map(item => {
+          if (item.href === null) {
+            return (
+              <button key={item.id} className="mc-bottom-nav-btn" onClick={() => setMoreOpen(true)}>
+                <span>{item.icon}</span>
+                <span>{item.label}</span>
+              </button>
+            );
+          }
           const isA = active === item.id;
           return (
-            <button className="mc-nav-btn" key={item.id} onClick={() => router.push(item.href)}
-              style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '9px 12px', margin: '2px 0', borderRadius: 8, cursor: 'pointer', border: 'none', textAlign: 'left', background: isA ? BLUE : 'transparent', color: isA ? 'white' : 'rgba(255,255,255,0.55)', fontSize: 13, fontFamily: 'DM Sans, sans-serif', fontWeight: isA ? 500 : 400, transition: 'background 0.12s' }}>
-              <span className="mc-nav-icon" style={{ fontSize: 14 }}>{item.icon}</span>
-              <span className="mc-nav-label" style={{ flex: 1 }}>{item.label}</span>
-              {(item.badge != null && item.badge !== 0 && (item.badge==='_chat'?chatBadge:item.badge==='_alerts'?alertBadge:item.badge) !== 0) && <span style={{ background: item.badge === 'PREMIUM' ? PURPLE : '#ef4444', color: item.badge === 'PREMIUM' ? '#e9d5ff' : 'white', fontSize: item.badge === 'PREMIUM' ? 8 : 10, fontWeight: 600, padding: item.badge === 'PREMIUM' ? '2px 5px' : '1px 5px', borderRadius: 99 }}>{item.badge==='_chat'?chatBadge:item.badge==='_alerts'?alertBadge:item.badge}</span>}
+            <button
+              key={item.id}
+              className={`mc-bottom-nav-btn${isA ? ' active' : ''}`}
+              onClick={() => router.push(item.href)}
+              style={{ position: 'relative' }}
+            >
+              <span>{item.icon}</span>
+              <span>{item.label}</span>
+              {item.id === 'doctorChat' && chatBadge > 0 && (
+                <span style={{ position: 'absolute', top: 6, right: 'calc(50% - 18px)', background: '#ef4444', color: 'white', fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 99 }}>
+                  {chatBadge}
+                </span>
+              )}
             </button>
           );
         })}
-      </div>
-      <div style={{ padding: '10px 12px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-        <button onClick={() => { localStorage.removeItem('mc_token'); localStorage.removeItem('mc_user'); router.push('/login'); }}
-          style={{ width: '100%', padding: '7px 10px', background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: 8, color: 'rgba(255,255,255,0.4)', fontSize: 12, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', textAlign: 'left' }}>
-          🚪 Sign out
-        </button>
-      </div>
-      {showProfile&&(
+      </nav>
+
+      {/* ── Mobile "More" Drawer ── */}
+      {moreOpen && (
+        <div
+          onClick={() => setMoreOpen(false)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(12,26,46,0.6)', zIndex: 200, display: 'flex', alignItems: 'flex-end' }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ width: '100%', background: NAVY, borderRadius: '16px 16px 0 0', padding: '16px 0 32px', fontFamily: 'DM Sans, sans-serif' }}
+          >
+            <div style={{ width: 36, height: 4, background: 'rgba(255,255,255,0.2)', borderRadius: 99, margin: '0 auto 16px' }} />
+            {/* Profile row */}
+            <button onClick={() => { setShowProfile(true); setMoreOpen(false); }}
+              style={{ display: 'flex', alignItems: 'center', gap: 14, width: '100%', padding: '13px 24px', background: 'none', border: 'none', color: 'white', fontSize: 15, fontWeight: 600, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>
+              <div style={{ width: 32, height: 32, borderRadius: '50%', background: TEAL_P, color: TEAL, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700 }}>{initials}</div>
+              {doctorName || 'Doctor'} — Edit Profile
+            </button>
+            <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', margin: '4px 0' }} />
+            {DOCTOR_NAV.map(item => {
+              const isA = active === item.id;
+              return (
+                <button key={item.id} onClick={() => { router.push(item.href); setMoreOpen(false); }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 14, width: '100%', padding: '13px 24px', background: 'none', border: 'none', color: isA ? 'white' : 'rgba(255,255,255,0.7)', fontSize: 15, fontWeight: isA ? 600 : 400, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>
+                  <span style={{ fontSize: 20, width: 24, textAlign: 'center' }}>{item.icon}</span>
+                  {item.label}
+                </button>
+              );
+            })}
+            <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', margin: '8px 0 0' }} />
+            <button onClick={signOut}
+              style={{ display: 'flex', alignItems: 'center', gap: 14, width: '100%', padding: '13px 24px', background: 'none', border: 'none', color: 'rgba(255,255,255,0.45)', fontSize: 15, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>
+              <span style={{ fontSize: 20, width: 24, textAlign: 'center' }}>🚪</span>
+              Sign out
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Doctor Profile Modal */}
+      {showProfile && (
         <DoctorProfileModal
-          tokenFn={()=>localStorage.getItem('mc_token')||''}
-          onClose={()=>setShowProfile(false)}
-          onSignOut={()=>{localStorage.removeItem('mc_token');localStorage.removeItem('mc_user');router.push('/login');}}
+          tokenFn={() => localStorage.getItem('mc_token') || ''}
+          onClose={() => setShowProfile(false)}
+          onSignOut={signOut}
         />
       )}
-    </div>
+    </>
   );
 }
 
@@ -1138,9 +1290,9 @@ export default function DoctorDashboard() {
   useEffect(() => {
     setMounted(true);
     const u = localStorage.getItem('mc_user');
-    if (!u) { router.push('/login'); return; }
+    if (!u) { window.location.href = '/login'; return; }
     const parsed = JSON.parse(u);
-    if (parsed.role !== 'DOCTOR') { router.push('/patient'); return; }
+    if (parsed.role !== 'DOCTOR') { window.location.href = '/patient'; return; }
     setUser(parsed);
 
     const headers = { Authorization: `Bearer ${token()}` };
@@ -1186,13 +1338,19 @@ export default function DoctorDashboard() {
   const uColor = u => ({ CRITICAL: RED, HIGH: AMBER, MEDIUM: BLUE, LOW: GREEN }[u] || MUTED);
   const uBg    = u => ({ CRITICAL: RED_P, HIGH: AMBER_P, MEDIUM: BLUE_P, LOW: GREEN_P }[u] || SURFACE);
 
-  
+  if (!mounted) return (
+    <div className="mc-app-shell" style={{ background: 'linear-gradient(90deg, #0c1a2e 60px, #f7f9fc 60px)' }}>
+      <div style={{ width: 60, minWidth: 60, background: NAVY, flexShrink: 0 }} />
+      <div style={{ flex: 1, background: SURFACE }} />
+    </div>
+  );
+
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', fontFamily: 'DM Sans, sans-serif' }}>
+    <div className="mc-app-shell">
       <Sidebar active="doctorDashboard" />
 
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
-        <div style={{ flex: 1, overflowY: 'auto', padding: 24, background: SURFACE }}>
+      <div className="mc-main">
+        <div className="mc-content">
 
           {/* ── FEATURE B: Red Flag Banner — always at top ── */}
           {alertsLoaded && alerts.length > 0 && (
@@ -1228,14 +1386,14 @@ export default function DoctorDashboard() {
           </div>
 
           {/* Stat cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 24 }}>
+          <div className="mc-stats-grid" style={{ marginBottom: 24 }}>
             <StatCard icon="📅" label="TODAY'S APPOINTMENTS" value={todayList.length} sub={`${upcoming.length} upcoming total`} color={BLUE}  loading={loading} onClick={() => router.push('/doctor/appointments')} />
             <StatCard icon="👥" label="TOTAL PATIENTS"       value={patients}         sub="in your panel"    color={TEAL}  loading={loading} onClick={() => router.push('/doctor/patients')} />
             <StatCard icon="✅" label="COMPLETED TODAY"      value={todayList.filter(a => a.status === 'COMPLETED').length} sub="consultations" color={GREEN} loading={loading} />
             <StatCard icon="🚨" label="CRITICAL ALERTS"      value={alerts.length}    sub="unacknowledged"   color={alerts.length > 0 ? RED : GREEN} loading={!alertsLoaded} onClick={alerts.length > 0 ? () => window.scrollTo({ top: 0, behavior: 'smooth' }) : undefined} />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 20, marginBottom: 20 }}>
 
             {/* Today's appointments */}
             <div style={{ background: 'white', borderRadius: 14, border: `1px solid ${BORDER}`, overflow: 'hidden' }}>
@@ -1325,7 +1483,7 @@ export default function DoctorDashboard() {
           <div style={{ background: 'white', borderRadius: 14, border: `1px solid ${BORDER}`, padding: '16px 18px' }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: NAVY, marginBottom: 4 }}>🧠 CDSS — Clinical Decision Support</div>
             <div style={{ fontSize: 12.5, color: MUTED, marginBottom: 14 }}>AI-powered guardrails and insights active on your patient panel</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+            <div className="mc-actions-grid">
               {[
                 { icon: '📈', label: 'Delta-Check', desc: 'Velocity alerts on lab trends', color: BLUE, href: '/doctor/reports' },
                 { icon: '🚨', label: 'Red Flag AI', desc: `${alerts.length} active alert${alerts.length !== 1 ? 's' : ''}`, color: alerts.length > 0 ? RED : GREEN, href: null, action: () => window.scrollTo({ top: 0, behavior: 'smooth' }) },

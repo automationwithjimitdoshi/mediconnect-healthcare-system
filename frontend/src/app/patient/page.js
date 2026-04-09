@@ -44,10 +44,23 @@ function docInitials(doc) {
   return `${doc.firstName?.[0] || ''}${doc.lastName?.[0] || ''}`.toUpperCase() || 'DR';
 }
 
+// ── Bottom nav items (mobile) — subset of NAV for thumb reach ────────────────
+const BOTTOM_NAV = [
+  { id: 'patientDashboard', label: 'Home',      icon: '⊞', href: '/patient' },
+  { id: 'patientAppts',     label: 'Appts',     icon: '📅', href: '/patient/appointments' },
+  { id: 'patientChat',      label: 'Chat',      icon: '💬', href: '/patient/chat' },
+  { id: 'patientReports',   label: 'Reports',   icon: '🔬', href: '/patient/reports' },
+  { id: 'patientMore',      label: 'More',      icon: '☰',  href: null },  // opens menu
+];
+
 // ── Sidebar ───────────────────────────────────────────────────────────────────
 function Sidebar({ active }) {
   const router = useRouter();
   const [chatBadge, setChatBadge] = useState(0);
+  const [name, setName] = useState('Patient');
+  const [inits, setInits] = useState('P');
+  const [moreOpen, setMoreOpen] = useState(false); // mobile "More" drawer
+
   useEffect(() => {
     const tok = localStorage.getItem('mc_token') || '';
     if (!tok) return;
@@ -56,10 +69,9 @@ function Sidebar({ active }) {
       .then(d => {
         const total = (d?.data || []).reduce((sum, r) => sum + (r.unreadCount || 0), 0);
         setChatBadge(total);
-      }).catch(() => { });
+      }).catch(() => {});
   }, []);
-  const [name, setName] = useState('Patient');
-  const [inits, setInits] = useState('P');
+
   useEffect(() => {
     try {
       const u = JSON.parse(localStorage.getItem('mc_user') || '{}');
@@ -68,50 +80,158 @@ function Sidebar({ active }) {
         : (u?.email || 'Patient');
       setName(n);
       setInits(n.split(' ').filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase() || 'P');
-    } catch { }
+    } catch {}
   }, []);
+
+  function signOut() {
+    localStorage.removeItem('mc_token');
+    localStorage.removeItem('mc_user');
+    window.location.href = '/login';
+  }
+
   return (
-    <div className="mc-sidebar" style={{ width: 220, background: NAVY, display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
-      <div style={{ padding: '20px 18px 14px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+    <>
+      {/* ── Desktop / Tablet Sidebar ── */}
+      <div className="mc-sidebar">
+
+        {/* Logo */}
+        <div style={{ padding: '16px 0 12px', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
           <div style={{ width: 32, height: 32, background: BLUE, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', flexShrink: 0 }}>
             <div style={{ position: 'absolute', width: 14, height: 3, background: 'white', borderRadius: 2 }} />
             <div style={{ position: 'absolute', width: 3, height: 14, background: 'white', borderRadius: 2 }} />
           </div>
-          <div>
+          <div style={{ minWidth: 0 }}>
             <div className="mc-logo-text" style={{ fontSize: 13, fontWeight: 600, color: 'white' }}>MediConnect AI</div>
             <div className="mc-logo-text" style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', fontFamily: 'monospace', letterSpacing: '0.1em' }}>PATIENT PORTAL</div>
           </div>
         </div>
-      </div>
-      <div style={{ margin: '10px 10px 6px', background: 'rgba(255,255,255,0.06)', borderRadius: 9, padding: '8px 10px', display: 'flex', alignItems: 'center', gap: 8 }}>
-        <div style={{ width: 30, height: 30, borderRadius: '50%', background: BLUE_P, color: BLUE, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{inits}</div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div className="mc-user-info" suppressHydrationWarning style={{ fontSize: 12, fontWeight: 500, color: 'white', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</div>
-          <div className="mc-user-info" style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>Patient</div>
+
+        {/* Avatar */}
+        <div style={{ margin: '10px 6px 6px', background: 'rgba(255,255,255,0.06)', borderRadius: 9, padding: '8px 6px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+          <div style={{ width: 30, height: 30, borderRadius: '50%', background: BLUE_P, color: BLUE, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{inits}</div>
+          <div className="mc-user-info" style={{ flex: 1, minWidth: 0 }}>
+            <div suppressHydrationWarning style={{ fontSize: 12, fontWeight: 500, color: 'white', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</div>
+            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>Patient</div>
+          </div>
         </div>
+
+        {/* Section label */}
+        <div className="mc-section-label" style={{ padding: '8px 0 4px', fontSize: 9, color: 'rgba(255,255,255,0.25)', fontFamily: 'monospace', letterSpacing: '0.12em', textAlign: 'center' }}>MENU</div>
+
+        {/* Nav items */}
+        <div style={{ padding: '0 6px', flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
+          {NAV.map(item => {
+            const isA = active === item.id;
+            return (
+              <button
+                className="mc-nav-btn"
+                key={item.id}
+                onClick={() => router.push(item.href)}
+                style={{
+                  margin: '2px 0', borderRadius: 8,
+                  background: isA ? BLUE : 'transparent',
+                  color: isA ? 'white' : 'rgba(255,255,255,0.6)',
+                  fontSize: 13, fontFamily: 'DM Sans, sans-serif',
+                  fontWeight: isA ? 600 : 400,
+                }}
+              >
+                <span className="mc-nav-icon">{item.icon}</span>
+                <span className="mc-nav-label" style={{ flex: 1, textAlign: 'left' }}>{item.label}</span>
+                {item.badge != null && (item.badge === '_chat' ? chatBadge > 0 : item.badge !== 0) && (
+                  <span className="mc-nav-label" style={{
+                    background: item.badge === 'FREE' ? '#0e7490' : '#ef4444',
+                    color: 'white', fontSize: item.badge === 'FREE' ? 9 : 10,
+                    fontWeight: 700, padding: '2px 6px', borderRadius: 99, flexShrink: 0,
+                  }}>
+                    {item.badge === '_chat' ? chatBadge : item.badge}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Sign out — always visible at bottom */}
+        <div style={{ padding: '10px 6px', borderTop: '1px solid rgba(255,255,255,0.08)', flexShrink: 0 }}>
+          <button
+            className="mc-nav-btn"
+            onClick={signOut}
+            style={{
+              borderRadius: 8, background: 'rgba(255,255,255,0.04)',
+              color: 'rgba(255,255,255,0.45)', fontSize: 12,
+              fontFamily: 'DM Sans, sans-serif',
+            }}
+          >
+            <span className="mc-nav-icon">🚪</span>
+            <span className="mc-signout-text">Sign out</span>
+          </button>
+        </div>
+
       </div>
-      <div className="mc-section-label" style={{ padding: '10px 18px 4px', fontSize: 9, color: 'rgba(255,255,255,0.25)', fontFamily: 'monospace', letterSpacing: '0.12em' }}>MY HEALTH</div>
-      <div style={{ padding: '0 8px', flex: 1 }}>
-        {NAV.map(item => {
-          const isA = active === item.id; return (
-            <button className="mc-nav-btn" key={item.id} onClick={() => router.push(item.href)}
-              style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '9px 12px', margin: '2px 0', borderRadius: 8, cursor: 'pointer', border: 'none', textAlign: 'left', background: isA ? BLUE : 'transparent', color: isA ? 'white' : 'rgba(255,255,255,0.55)', fontSize: 13, fontFamily: 'DM Sans, sans-serif', fontWeight: isA ? 500 : 400 }}>
-              <span className="mc-nav-icon" style={{ fontSize: 14 }}>{item.icon}</span>
-              <span className="mc-nav-label" style={{ flex: 1 }}>{item.label}</span>
-              {(item.badge != null && (item.badge === '_chat' ? chatBadge : item.badge) !== 0) && <span className="mc-nav-label" style={{ background: item.badge === 'FREE' ? '#0e7490' : '#ef4444', color: 'white', fontSize: item.badge === 'FREE' ? 9 : 10, fontWeight: 600, padding: item.badge === 'FREE' ? '2px 6px' : '1px 5px', borderRadius: 99 }}>{item.badge === '_chat' ? chatBadge : item.badge}</span>}
+
+      {/* ── Mobile Bottom Navigation ── */}
+      <nav className="mc-bottom-nav">
+        {BOTTOM_NAV.map(item => {
+          if (item.href === null) {
+            // "More" button — opens drawer
+            return (
+              <button key={item.id} className="mc-bottom-nav-btn" onClick={() => setMoreOpen(true)}>
+                <span>{item.icon}</span>
+                <span>{item.label}</span>
+              </button>
+            );
+          }
+          const isA = active === item.id;
+          return (
+            <button
+              key={item.id}
+              className={`mc-bottom-nav-btn${isA ? ' active' : ''}`}
+              onClick={() => router.push(item.href)}
+            >
+              <span>{item.icon}</span>
+              <span>{item.label}</span>
+              {item.id === 'patientChat' && chatBadge > 0 && (
+                <span style={{ position: 'absolute', top: 6, right: 'calc(50% - 18px)', background: '#ef4444', color: 'white', fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 99 }}>
+                  {chatBadge}
+                </span>
+              )}
             </button>
           );
         })}
-      </div>
-      <div style={{ padding: '10px 12px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-        <button onClick={() => { localStorage.removeItem('mc_token'); localStorage.removeItem('mc_user'); window.location.href = '/login'; }}
-          style={{ width: '100%', padding: '7px 10px', background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: 8, color: 'rgba(255,255,255,0.4)', fontSize: 12, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span className="mc-nav-icon" style={{ fontSize: 14 }}>🚪</span>
-          <span className="mc-signout-text">Sign out</span>
-        </button>
-      </div>
-    </div>
+      </nav>
+
+      {/* ── Mobile "More" Drawer ── */}
+      {moreOpen && (
+        <div
+          onClick={() => setMoreOpen(false)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(12,26,46,0.6)', zIndex: 200, display: 'flex', alignItems: 'flex-end' }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ width: '100%', background: NAVY, borderRadius: '16px 16px 0 0', padding: '16px 0 32px', fontFamily: 'DM Sans, sans-serif' }}
+          >
+            <div style={{ width: 36, height: 4, background: 'rgba(255,255,255,0.2)', borderRadius: 99, margin: '0 auto 16px' }} />
+            {/* All nav items */}
+            {NAV.map(item => {
+              const isA = active === item.id;
+              return (
+                <button key={item.id} onClick={() => { router.push(item.href); setMoreOpen(false); }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 14, width: '100%', padding: '13px 24px', background: 'none', border: 'none', color: isA ? 'white' : 'rgba(255,255,255,0.7)', fontSize: 15, fontWeight: isA ? 600 : 400, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>
+                  <span style={{ fontSize: 20, width: 24, textAlign: 'center' }}>{item.icon}</span>
+                  {item.label}
+                </button>
+              );
+            })}
+            <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', margin: '8px 0 0' }} />
+            <button onClick={signOut}
+              style={{ display: 'flex', alignItems: 'center', gap: 14, width: '100%', padding: '13px 24px', background: 'none', border: 'none', color: 'rgba(255,255,255,0.45)', fontSize: 15, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>
+              <span style={{ fontSize: 20, width: 24, textAlign: 'center' }}>🚪</span>
+              Sign out
+            </button>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -738,21 +858,18 @@ export default function PatientDashboard() {
     : allAppts.filter(a => ['COMPLETED', 'CANCELLED', 'NO_SHOW'].includes(a.status));
 
   if (!mounted) return (
-    <div style={{
-      display: 'flex', height: '100vh', overflow: 'hidden',
-      background: 'linear-gradient(90deg, #0c1a2e 60px, #f7f9fc 60px)',
-    }}>
+    <div className="mc-app-shell" style={{ background: 'linear-gradient(90deg, #0c1a2e 60px, #f7f9fc 60px)' }}>
       <div style={{ width: 60, minWidth: 60, background: NAVY, flexShrink: 0 }} />
       <div style={{ flex: 1, background: SURFACE }} />
     </div>
   );
 
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', fontFamily: 'DM Sans, sans-serif' }}>
+    <div className="mc-app-shell">
       <Sidebar active="patientDashboard" />
 
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <div style={{ flex: 1, overflowY: 'auto', padding: 24, background: SURFACE }}>
+      <div className="mc-main">
+        <div className="mc-content">
 
           {/* Header */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, flexWrap: 'wrap', gap: 10 }}>
@@ -767,7 +884,7 @@ export default function PatientDashboard() {
           </div>
 
           {/* Stats */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 14, marginBottom: 24 }}>
+          <div className="mc-stats-grid" style={{ marginBottom: 24 }}>
             {[
               { label: 'Upcoming', value: loading ? '…' : stats.upcoming, icon: '📅', color: BLUE },
               { label: 'Completed', value: loading ? '…' : stats.completed, icon: '✅', color: GREEN },
@@ -876,7 +993,7 @@ export default function PatientDashboard() {
           {/* Quick actions */}
           <div style={{ background: 'white', borderRadius: 14, border: `1px solid ${BORDER}`, padding: '16px 20px' }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: NAVY, marginBottom: 14 }}>Quick Actions</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10 }}>
+            <div className="mc-actions-grid">
               {[
                 { label: 'Book Appointment', icon: '📅', href: '/patient/appointments/book', color: BLUE },
                 { label: 'Message Doctor', icon: '💬', href: '/patient/chat', color: '#0e7490' },
