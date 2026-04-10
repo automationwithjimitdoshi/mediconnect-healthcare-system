@@ -4,6 +4,7 @@
 
 'use client';
 import { useState, useEffect } from 'react';
+import { useDoctorAuth } from '@/lib/useDoctorAuth';
 
 const NAVY  = '#0c1a2e';
 const BLUE  = '#1565c0';
@@ -214,5 +215,3 @@ export default function AIFileAnalysis({ fileId, fileName, onClose }) {
     </div>
   );
 }
-
-

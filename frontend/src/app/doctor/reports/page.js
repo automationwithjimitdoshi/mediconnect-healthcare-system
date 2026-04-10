@@ -24,6 +24,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import DoctorSidebar from '@/components/DoctorSidebar';
 import { getToken, getUser, clearSession } from '@/lib/auth';
+import { useDoctorAuth } from '@/lib/useDoctorAuth';
 
 function getParam(name) {
   if (typeof window === 'undefined') return null;
@@ -184,20 +185,7 @@ function DoctorProfileModal({ onClose, tokenFn, onSignOut }) {
     setTimeout(() => setToast(''), 3500);
   };
 
-  useEffect(() => {
-    loadProfile();
-    // Load stored app email
-    const ae = localStorage.getItem('mc_doctor_app_email') || '';
-    if (!ae) {
-      // Try to extract from mc_user
-      try {
-        const u = JSON.parse(localStorage.getItem('mc_user') || '{}');
-        setAppEmail(u.email || '');
-      } catch { }
-    } else {
-      setAppEmail(ae);
-    }
-  }, []);
+  useDoctorAuth();
 
   async function loadProfile() {
     setLoading(true);
@@ -249,14 +237,11 @@ function DoctorProfileModal({ onClose, tokenFn, onSignOut }) {
       const d = await r.json();
       if (r.ok) {
         showToast('✅ Profile updated successfully!');
-        // Update localStorage user
+        // Update session via auth system
         try {
-          const u = JSON.parse(localStorage.getItem('mc_user') || '{}');
-          if (u.doctor) {
-            u.doctor = { ...u.doctor, ...d.data };
-            localStorage.setItem('mc_user', JSON.stringify(u));
-          }
-        } catch { }
+          const _u = getUser('DOCTOR'); const _t = getToken('DOCTOR');
+          if (_u && _t) saveSession(_t, { ..._u, doctor: { ...(_u.doctor||{}), ...d.data } });
+        } catch {}
         setDoctor(prev => ({ ...prev, ...d.data }));
         setView('profile');
       } else {
@@ -681,14 +666,15 @@ function DoctorReportReviewInner() {
   const [uploadFile, setUploadFile] = useState(null);
   const [sharedFilter, setSharedFilter] = useState(false); // show only patients who shared reports
 
-  const token = useCallback(() => localStorage.getItem('mc_token') || '', []);
+  const token = useCallback(() => getToken('DOCTOR') || '', []);
   const showToast = msg => { setToast(msg); setTimeout(() => setToast(''), 3500); };
 
   useEffect(() => {
     setMounted(true);
-    const u = localStorage.getItem('mc_user');
-    if (!u) { router.push('/login'); return; }
-    if (JSON.parse(u).role !== 'DOCTOR') { router.push('/'); return; }
+    const tok = getToken('DOCTOR');
+    if (!tok) { window.location.href = '/login'; return; }
+    const u = getUser('DOCTOR');
+    if (u?.role && u.role !== 'DOCTOR') { window.location.href = '/'; return; }
     fetchPatients();
   }, []);
 

@@ -22,6 +22,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import DoctorSidebar from '@/components/DoctorSidebar';
 import { getToken, getUser, clearSession } from '@/lib/auth';
+import { useDoctorAuth } from '@/lib/useDoctorAuth';
 
 // ── Design tokens (inlined — no @/lib/styles dependency) ──────────────────────
 const NAVY = '#0c1a2e';
@@ -103,7 +104,7 @@ function DoctorProfileModal({ onClose, tokenFn, onSignOut }) {
   useEffect(() => {
     loadProfile();
     // Load stored app email
-    const ae = localStorage.getItem('mc_doctor_app_email') || '';
+    const ae = (typeof window !== 'undefined' ? localStorage.getItem('mc_doctor_app_email') : '') || '';
     if (!ae) {
       // Try to extract from mc_user
       try {
@@ -165,14 +166,11 @@ function DoctorProfileModal({ onClose, tokenFn, onSignOut }) {
       const d = await r.json();
       if (r.ok) {
         showToast('✅ Profile updated successfully!');
-        // Update localStorage user
+        // Update session via auth system
         try {
-          const u = JSON.parse(localStorage.getItem('mc_user') || '{}');
-          if (u.doctor) {
-            u.doctor = { ...u.doctor, ...d.data };
-            localStorage.setItem('mc_user', JSON.stringify(u));
-          }
-        } catch { }
+          const _u = getUser('DOCTOR'); const _t = getToken('DOCTOR');
+          if (_u && _t) saveSession(_t, { ..._u, doctor: { ...(_u.doctor||{}), ...d.data } });
+        } catch {}
         setDoctor(prev => ({ ...prev, ...d.data }));
         setView('profile');
       } else {
@@ -580,12 +578,12 @@ export default function DoctorAppointmentsPage() {
   const [selectedMed, setSelectedMed] = useState('');
   const [userLocation, setUserLocation] = useState(null);
 
-  const token = () => localStorage.getItem('mc_token') || '';
+  const token = () => getToken('DOCTOR') || '';
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3500); };
 
   useEffect(() => {
     setMounted(true);
-    if (!localStorage.getItem('mc_token')) { router.push('/login'); return; }
+    if (!getToken('DOCTOR')) { window.location.href = '/login'; return; }
     fetch(`${API}/appointments?limit=200`, { headers: { Authorization: `Bearer ${token()}` } })
       .then(r => r.json())
       .then(d => setAppts(d.data || d.appointments || []))

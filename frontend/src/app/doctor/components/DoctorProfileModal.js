@@ -13,7 +13,6 @@
  */
 
 import { useState, useEffect } from 'react';
-import { getUser, getToken, saveSession } from '@/lib/auth';
 
 const NAVY='#0c1a2e',BLUE='#1565c0',BLUE_P='#e3f0ff',RED='#c62828',RED_P='#fdecea',
       GREEN='#1b5e20',GREEN_P='#e8f5e9',AMBER='#b45309',AMBER_P='#fff3e0',
@@ -66,14 +65,11 @@ export default function DoctorProfileModal({ onClose, tokenFn, onSignOut }) {
 
   useEffect(() => {
     loadProfile();
-    // Load app email — check localStorage display key first (non-session, display only),
-    // then fall back to the session user object via getUser('DOCTOR').
+    // Load stored app email
     const ae = (typeof window !== 'undefined' ? localStorage.getItem('mc_doctor_app_email') : '') || '';
     if (!ae) {
-      // FIX: use getUser('DOCTOR') — never read mc_user from localStorage directly
-      // (mc_user is a legacy key that no longer exists in the current auth system)
-      const u = getUser('DOCTOR');
-      setAppEmail(u.email || '');
+      // Try to extract from mc_user
+      const _ue = getUser('DOCTOR'); setAppEmail(_ue.email || '');
     } else {
       setAppEmail(ae);
     }
@@ -129,15 +125,10 @@ export default function DoctorProfileModal({ onClose, tokenFn, onSignOut }) {
       const d = await r.json();
       if (r.ok) {
         showToast('✅ Profile updated successfully!');
-        // FIX: update session via saveSession — never read/write mc_user from localStorage directly
-        // (mc_user is a legacy key; the current auth system uses role-scoped sessionStorage keys)
+        // Update session via auth system
         try {
-          const u = getUser('DOCTOR');
-          const tok = getToken('DOCTOR');
-          if (u && tok && u.doctor) {
-            u.doctor = { ...u.doctor, ...d.data };
-            saveSession(tok, u);
-          }
+          const _u = getUser('DOCTOR'); const _t = getToken('DOCTOR');
+          if (_u && _t) saveSession(_t, { ..._u, doctor: { ...(_u.doctor||{}), ...d.data } });
         } catch {}
         setDoctor(prev => ({ ...prev, ...d.data }));
         setView('profile');

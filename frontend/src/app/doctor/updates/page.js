@@ -13,6 +13,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import DoctorSidebar from '@/components/DoctorSidebar';
 import { getToken, getUser, clearSession } from '@/lib/auth';
+import { useDoctorAuth } from '@/lib/useDoctorAuth';
 
 const NAVY = '#0c1a2e', BLUE = '#1565c0', BLUE_P = '#e3f0ff', RED = '#c62828', RED_P = '#fdecea',
   AMBER = '#b45309', AMBER_P = '#fff3e0', GREEN = '#1b5e20', GREEN_P = '#e8f5e9',
@@ -72,20 +73,7 @@ function DoctorProfileModal({ onClose, tokenFn, onSignOut }) {
     setTimeout(() => setToast(''), 3500);
   };
 
-  useEffect(() => {
-    loadProfile();
-    // Load stored app email
-    const ae = localStorage.getItem('mc_doctor_app_email') || '';
-    if (!ae) {
-      // Try to extract from mc_user
-      try {
-        const u = JSON.parse(localStorage.getItem('mc_user') || '{}');
-        setAppEmail(u.email || '');
-      } catch { }
-    } else {
-      setAppEmail(ae);
-    }
-  }, []);
+  useDoctorAuth();
 
   async function loadProfile() {
     setLoading(true);
@@ -533,15 +521,7 @@ export default function DoctorUpdatesPage() {
   const token = useCallback(() => localStorage.getItem('mc_token') || '', []);
   const showToast = msg => { setToast(msg); setTimeout(() => setToast(''), 3500); };
 
-  useEffect(() => {
-    setMounted(true);
-    const u = localStorage.getItem('mc_user');
-    if (!u) { router.push('/login'); return; }
-    if (JSON.parse(u).role !== 'DOCTOR') { router.push('/'); return; }
-    fetchAll();
-    const interval = setInterval(fetchAll, 30000); // poll every 30s
-    return () => clearInterval(interval);
-  }, []);
+  useDoctorAuth();
 
   async function fetchAll() {
     setLoading(true);

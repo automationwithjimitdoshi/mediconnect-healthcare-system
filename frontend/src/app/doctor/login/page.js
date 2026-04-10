@@ -8,6 +8,7 @@ export const fetchCache = 'force-no-store';
 import { useState, Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { saveSession } from '@/lib/auth';
+import { useDoctorAuth } from '@/lib/useDoctorAuth';
 
 const API    = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 const NAVY   = '#0c1a2e';

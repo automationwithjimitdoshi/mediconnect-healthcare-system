@@ -15,6 +15,7 @@ import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import DoctorSidebar from '@/components/DoctorSidebar';
 import { getToken, getUser, clearSession } from '@/lib/auth';
+import { useDoctorAuth } from '@/lib/useDoctorAuth';
 
 const NAVY='#0c1a2e',BLUE='#1565c0',BLUE_P='#e3f0ff',RED='#c62828',RED_P='#fdecea',
       AMBER='#b45309',AMBER_P='#fff3e0',GREEN='#1b5e20',GREEN_P='#e8f5e9',
@@ -168,13 +169,10 @@ function DoctorProfileModal({ onClose, tokenFn, onSignOut }) {
   useEffect(() => {
     loadProfile();
     // Load stored app email
-    const ae = localStorage.getItem('mc_doctor_app_email') || '';
+    const ae = (typeof window !== 'undefined' ? localStorage.getItem('mc_doctor_app_email') : '') || '';
     if (!ae) {
       // Try to extract from mc_user
-      try {
-        const u = JSON.parse(JSON.stringify(getUser('DOCTOR')) || '{}');
-        setAppEmail(u.email || '');
-      } catch {}
+      const _ue = getUser('DOCTOR'); setAppEmail(_ue.email || '');
     } else {
       setAppEmail(ae);
     }
@@ -230,13 +228,10 @@ function DoctorProfileModal({ onClose, tokenFn, onSignOut }) {
       const d = await r.json();
       if (r.ok) {
         showToast('✅ Profile updated successfully!');
-        // Update localStorage user
+        // Update session via auth system
         try {
-          const u = JSON.parse(JSON.stringify(getUser('DOCTOR')) || '{}');
-          if (u.doctor) {
-            u.doctor = { ...u.doctor, ...d.data };
-            localStorage.setItem('mc_user', JSON.stringify(u));
-          }
+          const _u = getUser('DOCTOR'); const _t = getToken('DOCTOR');
+          if (_u && _t) saveSession(_t, { ..._u, doctor: { ...(_u.doctor||{}), ...d.data } });
         } catch {}
         setDoctor(prev => ({ ...prev, ...d.data }));
         setView('profile');
@@ -896,9 +891,10 @@ function DoctorChatPageInner(){
   const sharedFiles= messages.filter(m=>m.type==='FILE'||m.file||m._file);
 
   useEffect(()=>{setMounted(true);
-    const tok=localStorage.getItem('mc_token');const u=JSON.stringify(getUser('DOCTOR'));
-    if(!tok){router.push('/login');return;}
-    if(u){try{const p=JSON.parse(u);if(p.role!=='DOCTOR'){router.push('/');return;}}catch{}}
+    const tok = getToken('DOCTOR');
+    if(!tok){window.location.href='/login';return;}
+    const u = getUser('DOCTOR');
+    if(u?.role && u.role!=='DOCTOR'){window.location.href='/';return;}
     loadRooms();
   },[]);
 

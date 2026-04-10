@@ -14,6 +14,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { saveSession, getToken, getUser, clearSession } from '@/lib/auth';
 import DoctorSidebar from '@/components/DoctorSidebar';
+import { useDoctorAuth } from '@/lib/useDoctorAuth';
 
 const NAVY    = '#0c1a2e';
 const BLUE    = '#1565c0';
@@ -82,19 +83,7 @@ function DoctorProfileModal({ onClose, tokenFn, onSignOut }) {
     setTimeout(() => setToast(''), 3500);
   };
 
-  useEffect(() => {
-    loadProfile();
-    // Load app email — check localStorage display key first (non-session, display only),
-    // then fall back to the session user object via getUser('DOCTOR').
-    const ae = (typeof window !== 'undefined' ? localStorage.getItem('mc_doctor_app_email') : '') || '';
-    if (!ae) {
-      // FIX: use getUser('DOCTOR') — never read mc_user from localStorage directly
-      const u = getUser('DOCTOR');
-      setAppEmail(u.email || '');
-    } else {
-      setAppEmail(ae);
-    }
-  }, []);
+  useDoctorAuth();
 
   async function loadProfile() {
     setLoading(true);
@@ -487,32 +476,9 @@ function Sidebar({ active }) {
   const [specialty,   setSpecialty]   = useState('');
   const [moreOpen,    setMoreOpen]    = useState(false);
 
-  useEffect(() => {
-    const tok = getToken('DOCTOR');
-    if (!tok) return;
-    const h = { Authorization: `Bearer ${tok}` };
-    fetch(`${API}/chat/rooms?limit=100`, { headers: h }).then(r => r.ok ? r.json() : null)
-      .then(d => {
-        const total = (d?.data || []).reduce((sum, r) => sum + (r.unreadCount || 0), 0);
-        setChatBadge(total);
-      }).catch(() => {});
-    fetch(`${API}/cdss/alerts`, { headers: h }).then(r => r.ok ? r.json() : null)
-      .then(d => setAlertBadge((d?.data || d?.alerts || []).length))
-      .catch(() => {});
-  }, []);
+  useDoctorAuth();
 
-  useEffect(() => {
-    try {
-      const u = getUser('DOCTOR');
-      if (u?.doctor) {
-        setDoctorName(`Dr. ${u.doctor.firstName || ''} ${u.doctor.lastName || ''}`.trim());
-        setSpecialty(u.doctor.specialty || 'Doctor');
-      } else {
-        setDoctorName(u?.email || 'Doctor');
-        setSpecialty('Doctor Portal');
-      }
-    } catch {}
-  }, []);
+  useDoctorAuth();
 
   const initials = doctorName.split(' ').filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase() || 'DR';
 
@@ -1297,60 +1263,7 @@ export default function DoctorDashboard() {
     } catch {}
   }
 
-  useEffect(() => {
-    setMounted(true);
-    const tok    = token();
-    const parsed = getUser('DOCTOR');
-
-    if (!tok)                          { window.location.href = '/login';   return; }
-    if (!parsed || !parsed.role)       { window.location.href = '/login';   return; }
-    if (parsed.role !== 'DOCTOR')      { window.location.href = '/patient'; return; }
-    setUser(parsed);
-
-    const headers = { Authorization: `Bearer ${tok}` };
-
-    fetch(`${API}/auth/me`, { headers })
-      .then(r => {
-        if (r.status === 401 || r.status === 403) {
-          clearSession('DOCTOR');
-          window.location.href = '/login';
-          return null;
-        }
-        return r.ok ? r.json() : null;
-      })
-      .catch(() => null);
-
-    fetch(`${API}/appointments`, { headers }).then(r => r.json())
-      .then(d => { setAppts(d.data || d.appointments || []); }).catch(() => {}).finally(() => setLoading(false));
-
-    fetch(`${API}/patients`, { headers }).then(r => r.json())
-      .then(d => setPatients(d.total || d.data?.length || d.patients?.length || 0)).catch(() => {});
-
-    // Load alerts immediately, then poll every 30s
-    fetchAlerts();
-    const interval = setInterval(fetchAlerts, 30_000);
-
-    // Load real patients for Patient Panel
-    fetch(`${API}/doctor-data/patients`, { headers })
-      .then(r => r.json())
-      .then(d => setRealPatients((d.data || []).slice(0, 6)))
-      .catch(() => {});
-
-    // Load unread message counts from chat rooms
-    fetch(`${API}/chat/rooms?limit=100`, { headers })
-      .then(r => r.json())
-      .then(d => {
-        const counts = {};
-        for (const room of (d.data || [])) {
-          const p = room.patient || room.appointment?.patient;
-          if (p?.id && (room.unreadCount || 0) > 0) counts[p.id] = room.unreadCount;
-        }
-        setUnreadCounts(counts);
-      })
-      .catch(() => {});
-
-    return () => clearInterval(interval);
-  }, []);
+  useDoctorAuth();
 
   const todayStr  = new Date().toDateString();
   const todayList = appts.filter(a => new Date(a.scheduledAt).toDateString() === todayStr);
