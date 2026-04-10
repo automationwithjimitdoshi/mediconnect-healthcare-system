@@ -1,156 +1,140 @@
 /**
- * src/lib/auth.js — NexMedicon AI Session Manager
+ * src/lib/auth.js — NexMedicon AI
  *
- * ROLE-SCOPED STORAGE — Patient and Doctor sessions never interfere:
- *   Patient  → mc_token_patient / mc_user_patient
- *   Doctor   → mc_token_doctor  / mc_user_doctor
+ * THE ACTUAL PROBLEM THAT WAS CAUSING CROSS-TAB SESSION LEAKING:
+ * ─────────────────────────────────────────────────────────────────
+ * Every saveSession() call was ALSO writing to shared legacy keys
+ * mc_token / mc_user (localStorage). When Tab A (Patient) refreshed
+ * its session via /auth/me, it overwrote those legacy keys with the
+ * patient's token. Tab B (Doctor) then fell through to legacy keys
+ * in its getToken() fallback chain and got the patient's token instead
+ * of the doctor's. Result: both tabs forced into the same role.
  *
- * SSR-SAFE — All localStorage/sessionStorage access is guarded by
- * typeof window checks so Next.js SSR never crashes.
- * Do NOT add 'use client' — this is a plain utility module, not a component.
+ * THE FIX:
+ * ─────────────────────────────────────────────────────────────────
+ * 1. saveSession() writes ONLY to role-scoped keys. No legacy writes.
+ * 2. getToken(role) reads ONLY from role-scoped keys. No legacy reads.
+ * 3. Legacy keys (mc_token/mc_user) are ONLY read once on first load
+ *    to migrate existing sessions — and immediately promoted to
+ *    role-scoped keys so legacy is never read again.
+ * 4. sessionStorage mirrors localStorage for extra tab isolation
+ *    on desktop (sessionStorage is always tab-private).
  *
- * Works on: Desktop browser tabs · Android WebView · iOS WebView · Expo
+ * KEY ARCHITECTURE:
+ * ─────────────────────────────────────────────────────────────────
+ *   Patient session  → mc_token_patient  /  mc_user_patient
+ *   Doctor  session  → mc_token_doctor   /  mc_user_doctor
+ *   Legacy  (once)   → mc_token / mc_user  (migrated + deleted)
+ *
+ * Works on: Desktop tabs · Android WebView · iOS WebView · Expo
  */
 
 const KEYS = {
   PATIENT: { token: 'mc_token_patient', user: 'mc_user_patient' },
   DOCTOR:  { token: 'mc_token_doctor',  user: 'mc_user_doctor'  },
 };
-const LEGACY = { token: 'mc_token', user: 'mc_user' };
 
-/* ── SSR guard — never access storage on server ────────────────────────── */
+// ── SSR guard ────────────────────────────────────────────────────
 const isBrowser = () => typeof window !== 'undefined';
 
-/* ── Safe storage helpers ───────────────────────────────────────────────── */
-function lsGet(key) {
-  if (!isBrowser()) return null;
-  try { return localStorage.getItem(key); } catch { return null; }
-}
-function lsSet(key, val) {
+// ── Storage helpers — every one guards against SSR + throws ─────
+function lsGet(k)    { if (!isBrowser()) return null; try { return localStorage.getItem(k);    } catch { return null; } }
+function lsSet(k, v) { if (!isBrowser()) return;      try { localStorage.setItem(k, v);        } catch {} }
+function lsDel(k)    { if (!isBrowser()) return;      try { localStorage.removeItem(k);        } catch {} }
+function ssGet(k)    { if (!isBrowser()) return null; try { return sessionStorage.getItem(k);  } catch { return null; } }
+function ssSet(k, v) { if (!isBrowser()) return;      try { sessionStorage.setItem(k, v);      } catch {} }
+function ssDel(k)    { if (!isBrowser()) return;      try { sessionStorage.removeItem(k);      } catch {} }
+
+function keysFor(role) { return KEYS[(role || '').toUpperCase()] || null; }
+
+// ── One-time legacy migration ─────────────────────────────────────
+// Called internally. Reads old shared mc_token/mc_user, promotes to
+// role-scoped keys, then DELETES the legacy keys so they never leak again.
+function migrateLegacy() {
   if (!isBrowser()) return;
-  try { localStorage.setItem(key, val); } catch {}
-}
-function lsDel(key) {
-  if (!isBrowser()) return;
-  try { localStorage.removeItem(key); } catch {}
-}
-function ssGet(key) {
-  if (!isBrowser()) return null;
-  try { return sessionStorage.getItem(key); } catch { return null; }
-}
-function ssSet(key, val) {
-  if (!isBrowser()) return;
-  try { sessionStorage.setItem(key, val); } catch {}
-}
-function ssDel(key) {
-  if (!isBrowser()) return;
-  try { sessionStorage.removeItem(key); } catch {}
+  const tok = lsGet('mc_token');
+  const raw = lsGet('mc_user');
+  if (!tok || !raw) return;
+  try {
+    const user = JSON.parse(raw);
+    const k = keysFor(user?.role);
+    if (k && !lsGet(k.token)) {
+      // Only migrate if role-scoped slot is empty (don't overwrite a real session)
+      lsSet(k.token, tok);
+      lsSet(k.user,  raw);
+      ssSet(k.token, tok);
+      ssSet(k.user,  raw);
+      console.log('[auth] Migrated legacy session →', user.role);
+    }
+  } catch {}
+  // Always delete legacy keys after migration attempt
+  lsDel('mc_token');
+  lsDel('mc_user');
 }
 
-/* ── Role key lookup ────────────────────────────────────────────────────── */
-function keysFor(role) {
-  return KEYS[(role || '').toUpperCase()] || null;
-}
+// Run migration once when this module is first imported in the browser
+if (isBrowser()) migrateLegacy();
 
-/* ── Auto-detect role from URL path ────────────────────────────────────── */
-function detectRole() {
-  if (!isBrowser()) return null;
-  const p = window.location.pathname;
-  if (p.startsWith('/doctor'))  return 'DOCTOR';
-  if (p.startsWith('/patient')) return 'PATIENT';
-  return null;
-}
+// ─────────────────────────────────────────────────────────────────
+// PUBLIC API
+// ─────────────────────────────────────────────────────────────────
 
 /**
  * saveSession(token, user)
- * Writes to role-scoped keys (primary) + legacy keys (backward compat).
- * Call this on every successful login.
+ * Writes ONLY to role-scoped keys — never touches legacy keys.
+ * This is the key fix: no shared keys = no cross-tab leaking.
  */
 export function saveSession(token, user) {
   if (!token || !user) return;
+  const k = keysFor(user.role);
+  if (!k) return;
   const str = JSON.stringify(user);
-  const k   = keysFor(user.role);
-
-  if (k) {
-    lsSet(k.token, token); lsSet(k.user, str);
-    ssSet(k.token, token); ssSet(k.user, str);
-  }
-  // Legacy keys — keep for any pages not yet updated
-  lsSet(LEGACY.token, token);
-  lsSet(LEGACY.user,  str);
+  // localStorage: persists across page refreshes and new tabs
+  lsSet(k.token, token);
+  lsSet(k.user,  str);
+  // sessionStorage: tab-private, takes priority in getToken/getUser
+  ssSet(k.token, token);
+  ssSet(k.user,  str);
+  // NEVER write to mc_token / mc_user (legacy) — that was the leaking vector
 }
 
 /**
- * getToken(role?)
- * sessionStorage first (tab isolation on desktop), then localStorage.
- * If no role given, auto-detects from URL.
+ * getToken(role)
+ * role is REQUIRED. Always pass 'PATIENT' or 'DOCTOR' explicitly.
+ * Reads sessionStorage first (tab-private), then localStorage.
+ * NEVER reads legacy keys.
  */
 export function getToken(role) {
-  const r = role || detectRole();
-  if (r) {
-    const k = keysFor(r);
-    if (k) return ssGet(k.token) || lsGet(k.token) || '';
-  }
-  // No role context — try all
-  return ssGet(KEYS.DOCTOR.token)  || lsGet(KEYS.DOCTOR.token)  ||
-         ssGet(KEYS.PATIENT.token) || lsGet(KEYS.PATIENT.token) ||
-         lsGet(LEGACY.token) || '';
+  const k = keysFor(role);
+  if (!k) return '';
+  return ssGet(k.token) || lsGet(k.token) || '';
 }
 
 /**
- * getUser(role?)
- * Returns the parsed user object for the given role.
- * Returns {} if not found (never throws).
+ * getUser(role)
+ * role is REQUIRED. Returns parsed user object or {}.
+ * NEVER reads legacy keys.
  */
 export function getUser(role) {
-  const r = role || detectRole();
-  let raw = null;
-
-  if (r) {
-    const k = keysFor(r);
-    if (k) raw = ssGet(k.user) || lsGet(k.user);
-  } else {
-    raw = ssGet(KEYS.DOCTOR.user)  || lsGet(KEYS.DOCTOR.user)  ||
-          ssGet(KEYS.PATIENT.user) || lsGet(KEYS.PATIENT.user) ||
-          lsGet(LEGACY.user);
-  }
-
+  const k = keysFor(role);
+  if (!k) return {};
+  const raw = ssGet(k.user) || lsGet(k.user);
   try { return JSON.parse(raw || '{}') || {}; } catch { return {}; }
 }
 
 /**
- * clearSession(role?)
- * Clears ONLY the given role's keys — other role is untouched.
- * If no role given, clears everything.
+ * clearSession(role)
+ * Clears ONLY the given role's keys.
+ * The other role's keys are completely untouched.
  */
 export function clearSession(role) {
-  const r = role || detectRole();
-  if (r) {
-    const k = keysFor(r);
-    if (k) {
-      lsDel(k.token); lsDel(k.user);
-      ssDel(k.token); ssDel(k.user);
-    }
-    // Clear legacy only if it belongs to this role
-    const lu = (() => { try { return JSON.parse(lsGet(LEGACY.user) || '{}'); } catch { return {}; } })();
-    if (!lu.role || lu.role === r) {
-      lsDel(LEGACY.token); lsDel(LEGACY.user);
-    }
-  } else {
-    Object.values(KEYS).forEach(k => {
-      lsDel(k.token); lsDel(k.user);
-      ssDel(k.token); ssDel(k.user);
-    });
-    lsDel(LEGACY.token); lsDel(LEGACY.user);
-  }
+  const k = keysFor(role);
+  if (!k) return;
+  lsDel(k.token); lsDel(k.user);
+  ssDel(k.token); ssDel(k.user);
 }
 
-/** True if a valid session exists for the given role (or any role) */
+/** True if a session token exists for this role */
 export function hasSession(role) {
   return !!getToken(role);
-}
-
-/** Returns 'PATIENT' | 'DOCTOR' | null based on current URL */
-export function getRole() {
-  return detectRole();
 }

@@ -827,12 +827,14 @@ export default function PatientDashboard() {
         if (!me) return;
         if (me.user || me.data) {
           const fresh = me.user || me.data;
-          const stored = { ...parsedUser, ...fresh };
+          // CRITICAL: always force role=PATIENT so saveSession writes to
+          // the correct scoped keys and never leaks into another role's slot
+          const stored = { ...parsedUser, ...fresh, role: 'PATIENT' };
           setUser(stored);
           try { saveSession(tok, stored); } catch {}
         }
       })
-      .catch(() => {}); // network error — don't logout, just continue
+      .catch(() => {});
 
     Promise.all([
       fetch(`${API}/appointments`, { headers }).then(r => r.json()).catch(() => ({})),
