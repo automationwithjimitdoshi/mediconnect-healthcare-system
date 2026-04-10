@@ -12,7 +12,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import DoctorSidebar from '@/components/DoctorSidebar';
-import { getToken, getUser, clearSession } from '@/lib/auth';
+import { getToken, getUser, clearSession, saveSession } from '@/lib/auth';
 import { useDoctorAuth } from '@/lib/useDoctorAuth';
 
 const NAVY = '#0c1a2e', BLUE = '#1565c0', BLUE_P = '#e3f0ff', RED = '#c62828', RED_P = '#fdecea',
@@ -125,13 +125,10 @@ function DoctorProfileModal({ onClose, tokenFn, onSignOut }) {
       const d = await r.json();
       if (r.ok) {
         showToast('✅ Profile updated successfully!');
-        // Update localStorage user
+        // Update session via auth system
         try {
-          const u = JSON.parse(localStorage.getItem('mc_user') || '{}');
-          if (u.doctor) {
-            u.doctor = { ...u.doctor, ...d.data };
-            localStorage.setItem('mc_user', JSON.stringify(u));
-          }
+          const _u = getUser('DOCTOR'); const _t = getToken('DOCTOR');
+          if (_u && _t) saveSession(_t, { ..._u, doctor: { ...(_u.doctor || {}), ...d.data } });
         } catch { }
         setDoctor(prev => ({ ...prev, ...d.data }));
         setView('profile');
@@ -518,10 +515,22 @@ export default function DoctorUpdatesPage() {
   const [acking, setAcking] = useState(null);
   const [toast, setToast] = useState('');
 
-  const token = useCallback(() => localStorage.getItem('mc_token') || '', []);
+  const token = useCallback(() => getToken('DOCTOR') || '', []);
   const showToast = msg => { setToast(msg); setTimeout(() => setToast(''), 3500); };
 
   useDoctorAuth();
+
+  useEffect(() => {
+    setMounted(true);
+    const tok = getToken('DOCTOR');
+    if (!tok) { window.location.href = '/login'; return; }
+    const u = getUser('DOCTOR');
+    if (u?.role && u.role !== 'DOCTOR') { window.location.href = '/'; return; }
+    fetchAll();
+    // Poll for updates every 30 seconds — no WebSocket needed
+    const interval = setInterval(fetchAll, 30_000);
+    return () => clearInterval(interval);
+  }, []);
 
   async function fetchAll() {
     setLoading(true);
@@ -748,5 +757,3 @@ export default function DoctorUpdatesPage() {
     </div>
   );
 }
-
-
