@@ -1,4 +1,9 @@
 'use client';
+export const dynamic = 'force-dynamic';
+
+// Required for Next.js static export with dynamic routes
+export function generateStaticParams() { return []; }
+
 /**
  * src/app/report/view/[shareToken]/page.js
  *
