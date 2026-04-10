@@ -84,14 +84,13 @@ function DoctorProfileModal({ onClose, tokenFn, onSignOut }) {
 
   useEffect(() => {
     loadProfile();
-    // Load stored app email
-    const ae = localStorage.getItem('mc_doctor_app_email') || '';
+    // Load app email — check localStorage display key first (non-session, display only),
+    // then fall back to the session user object via getUser('DOCTOR').
+    const ae = (typeof window !== 'undefined' ? localStorage.getItem('mc_doctor_app_email') : '') || '';
     if (!ae) {
-      // Try to extract from mc_user
-      try {
-        const u = getUser('DOCTOR');
-        setAppEmail(u.email || '');
-      } catch {}
+      // FIX: use getUser('DOCTOR') — never read mc_user from localStorage directly
+      const u = getUser('DOCTOR');
+      setAppEmail(u.email || '');
     } else {
       setAppEmail(ae);
     }
