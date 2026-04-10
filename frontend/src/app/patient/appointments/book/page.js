@@ -189,13 +189,17 @@ function BookAppointmentPage() {
 
   useEffect(() => {
     setMounted(true);
-    const tok = localStorage.getItem('mc_token');
-    const u   = JSON.stringify(getUser('PATIENT'));
+    // FIX: use getToken('PATIENT') — never read localStorage directly.
+    // The old code read localStorage.getItem('mc_token') which is never
+    // written by the current auth.js, so tok was always null → redirect loop.
+    const tok = getToken('PATIENT');
     if (!tok) { router.push('/login'); return; }
-    if (u) {
-      try { const parsed = JSON.parse(u); if (parsed.role !== 'PATIENT') { router.push('/'); return; } }
-      catch {}
-    }
+
+    // FIX: getUser() already returns a plain object — do NOT JSON.stringify
+    // then JSON.parse it (double-stringify made parsed.role always undefined).
+    const u = getUser('PATIENT');
+    if (u && u.role && u.role !== 'PATIENT') { router.push('/'); return; }
+
     // Pre-select doctor if coming from a link with ?doctorId=
     const preId = getParam('doctorId');
     if (preId) loadSingleDoctor(preId);
