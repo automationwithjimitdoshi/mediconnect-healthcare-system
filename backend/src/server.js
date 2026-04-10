@@ -15,6 +15,8 @@ const fs      = require('fs');
 
 const app    = express();
 const server = http.createServer(app);
+const googlePlacesRoute = require('./routes/googlePlaces');
+app.use('/api/google-places', googlePlacesRoute);
 
 // ── Socket.io ─────────────────────────────────────────────────────────────────
 let io;

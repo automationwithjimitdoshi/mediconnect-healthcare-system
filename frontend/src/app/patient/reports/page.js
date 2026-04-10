@@ -19,6 +19,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { getToken, getUser, clearSession } from '@/lib/auth';
 import PatientSidebar from '@/components/PatientSidebar';
+import TopDoctorsCard  from './components/TopDoctorsCard';
+import ShareReportModal from './components/ShareReportModal';
 
 
 // ── Design tokens ──────────────────────────────────────────────────────────────
@@ -558,6 +560,8 @@ export default function PatientReportAnalyzer() {
   const [historyLoaded, setHLoaded]     = useState(false);
   const [activeFeature, setActiveFeat]  = useState(null);
   const [reportMeta,    setReportMeta]  = useState({ patientName:'', labName:'' });
+  const [shareOpen,     setShareOpen]   = useState(false);
+  const [shareReport,   setShareReport] = useState(null);
 
   const token = useCallback(() => getToken('PATIENT') || '', []);
 
