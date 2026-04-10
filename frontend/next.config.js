@@ -4,7 +4,7 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  //output: 'export',
+  output: 'export',
   // Disable static optimization for pages using client-side APIs
   experimental: {
     // Force all pages to be server-side rendered, not statically generated
