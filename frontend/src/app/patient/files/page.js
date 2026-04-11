@@ -14,7 +14,8 @@ import { getToken } from '@/lib/auth';
 import PatientSidebar from '@/components/PatientSidebar';
 
 const API  = process.env.NEXT_PUBLIC_API_URL  || 'http://localhost:5000/api';
-const BASE = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:5000';
+// Derive BASE from API — strips /api suffix, works on local AND Railway automatically
+const BASE = API.replace(/\/api\/?$/, '');
 
 const NAVY  = '#0c1a2e', BLUE = '#1565c0', BLUE_P = '#e3f0ff',
       GREEN = '#1b5e20', GREEN_P = '#e8f5e9', RED = '#c62828', RED_P = '#fdecea',
@@ -156,40 +157,32 @@ export default function PatientFilesPage() {
     }
   }
 
-  // ── Download: fetch blob from static URL → trigger browser save dialog ──────
-  // Express serves /uploads as static — no auth needed, always works locally.
-  // Using fetch→blob→anchor forces the browser to SAVE the file instead of opening it.
-  async function handleDownload(file) {
-    setDownloading(file.id);
-    try {
-      const rawUrl = file.storageUrl || file.fileUrl || '';
-      if (!rawUrl) { showToast('File URL not available', 'err'); return; }
+  // ── Download: direct anchor href — no fetch, no CORS, no connection issues ──
+  // Sets window.location to the file URL with a ?download=1 query param.
+  // The backend serves /uploads as static — Express sends Content-Disposition
+  // attachment header for unknown MIME types, triggering Save dialog.
+  // For PDFs/images that browsers open inline, we use the /api/files/:id/download
+  // endpoint which forces Content-Disposition: attachment via the response header.
+  function handleDownload(file) {
+    const rawUrl = file.storageUrl || file.fileUrl || '';
+    if (!rawUrl) { showToast('File URL not available', 'err'); return; }
 
-      // Build absolute static URL: '/uploads/pdfs/abc.PDF' → 'http://localhost:5000/uploads/pdfs/abc.PDF'
-      const staticUrl = rawUrl.startsWith('http') ? rawUrl : `${BASE}${rawUrl}`;
+    // Build the absolute URL using the correct base (works local + Railway)
+    const staticUrl = rawUrl.startsWith('http') ? rawUrl : `${BASE}${rawUrl}`;
 
-      // fetch the file as a blob — this forces download instead of browser navigation
-      const r = await fetch(staticUrl);
-      if (!r.ok) throw new Error(`Server returned ${r.status}`);
+    // Use the API download endpoint — it sets Content-Disposition: attachment
+    // so the browser always saves instead of opening inline
+    const downloadUrl = `${API}/files/${file.id}/download?token=${encodeURIComponent(tok())}`;
 
-      const blob = await r.blob();
-      const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href     = downloadUrl;
+    a.download = file.fileName || 'download';
+    a.target   = '_blank'; // open in new tab as safety fallback
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
 
-      // Create a hidden anchor with `download` attribute — triggers Save dialog
-      const a = document.createElement('a');
-      a.href     = blobUrl;
-      a.download = file.fileName || 'download'; // filename shown in Save dialog
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(blobUrl);
-
-      showToast(`✅ ${file.fileName} downloaded`);
-    } catch (err) {
-      showToast('Download failed: ' + err.message, 'err');
-    } finally {
-      setDownloading(null);
-    }
+    showToast(`⬇️ Downloading ${file.fileName}…`);
   }
 
   // ── Delete ────────────────────────────────────────────────────────────────
@@ -385,9 +378,9 @@ export default function PatientFilesPage() {
                       </button>
 
                       {/* Download */}
-                      <button onClick={() => handleDownload(file)} disabled={isDling || isDeleting}
-                        style={{ padding: '6px 12px', background: SURFACE, color: isDling ? MUTED : SEC, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: isDling || isDeleting ? 'not-allowed' : 'pointer', minWidth: 90, textAlign: 'center' }}>
-                        {isDling ? '⏳ …' : '↓ Download'}
+                      <button onClick={() => handleDownload(file)} disabled={isDeleting}
+                        style={{ padding: '6px 12px', background: SURFACE, color: SEC, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: isDeleting ? 'not-allowed' : 'pointer', minWidth: 90, textAlign: 'center' }}>
+                        ↓ Download
                       </button>
 
                       {/* Delete */}

@@ -317,67 +317,76 @@ router.delete('/:fileId', requireAuth, async (req, res) => {
  * ADD THESE ROUTES TO backend/src/routes/files.js
  * Place them BEFORE the final `module.exports = router;` line.
  *
- * These routes fix:
- *  1. GET  /api/files/my          — returns all files for logged-in patient
- *  2. GET  /api/files/:id/download — authenticated file download (works on Railway)
- *  3. DELETE /api/files/:id       — delete a file + remove from disk
+ * Fixes:
+ *  1. GET  /api/files/my              — all files for logged-in patient
+ *  2. GET  /api/files/:id/download    — forces Save dialog (Content-Disposition: attachment)
+ *                                       accepts token via query param (for anchor-click downloads)
+ *  3. DELETE /api/files/:id           — deletes DB record + file from disk
  */
 
-// ── Helper: find real disk path regardless of how file was uploaded ──────────
-// files.js uploads store absolute path in storageKey
-// reports.js / chat uploads store relative URL in storageUrl like '/uploads/pdfs/abc.pdf'
+// ── Helper: resolve actual disk path regardless of upload source ──────────────
 function resolveDiskPath(file) {
-  const UPLOADS_ROOT = require('path').join(__dirname, '..', '..', 'uploads');
+  const nodePath = require('path');
+  const nodeFs   = require('fs');
+  const UPLOADS  = nodePath.join(__dirname, '..', '..', 'uploads');
 
-  // 1. storageKey — absolute disk path saved by reports.js
-  if (file.storageKey && require('fs').existsSync(file.storageKey)) {
-    return file.storageKey;
-  }
+  // 1. Absolute path stored directly (files.js uploads)
+  if (file.storageKey && nodeFs.existsSync(file.storageKey)) return file.storageKey;
+  if (file.filePath   && nodeFs.existsSync(file.filePath))   return file.filePath;
 
-  // 2. filePath — absolute path saved by older files.js
-  if (file.filePath && require('fs').existsSync(file.filePath)) {
-    return file.filePath;
-  }
-
-  // 3. storageUrl — relative URL like '/uploads/pdfs/abc.pdf'
+  // 2. Relative URL stored as storageUrl e.g. '/uploads/pdfs/abc.PDF'
   if (file.storageUrl) {
-    const rel  = file.storageUrl.replace(/^\//, '');           // strip leading /
-    const abs  = require('path').join(UPLOADS_ROOT, '..', rel); // go up from uploads/../uploads/pdfs/...
-    const abs2 = require('path').join(UPLOADS_ROOT, rel.replace(/^uploads\//, '')); // strip 'uploads/' prefix
-    if (require('fs').existsSync(abs))  return abs;
-    if (require('fs').existsSync(abs2)) return abs2;
+    const rel = file.storageUrl.replace(/^\//, '').replace(/^uploads\//, '');
+    const abs = nodePath.join(UPLOADS, rel);
+    if (nodeFs.existsSync(abs)) return abs;
   }
 
-  // 4. fileName — try to find by filename in all subdirs
-  if (file.fileName || file.storageKey) {
-    const name = require('path').basename(file.storageKey || file.fileName || '');
-    for (const sub of ['pdfs', 'images', 'documents', 'dicom']) {
-      const candidate = require('path').join(UPLOADS_ROOT, sub, name);
-      if (require('fs').existsSync(candidate)) return candidate;
+  // 3. Scan all subdirs by filename
+  const name = require('path').basename(
+    file.storageKey || file.filePath || file.storageUrl || file.fileName || ''
+  );
+  if (name) {
+    for (const sub of ['pdfs', 'images', 'documents', 'dicom', '']) {
+      const p = nodePath.join(UPLOADS, sub, name);
+      if (nodeFs.existsSync(p)) return p;
     }
   }
 
   return null;
 }
 
+// ── Auth helper that accepts token from header OR ?token= query param ─────────
+// Needed because anchor-click downloads can't send Authorization headers.
+function resolveToken(req) {
+  const header = (req.headers.authorization || '').replace('Bearer ', '').trim();
+  if (header) return header;
+  return req.query.token || '';
+}
+
+function requireAuthFlex(req, res, next) {
+  try {
+    const token = resolveToken(req);
+    if (!token) return res.status(401).json({ success: false, message: 'No token' });
+    req.user = require('jsonwebtoken').verify(token, process.env.JWT_SECRET);
+    next();
+  } catch {
+    return res.status(401).json({ success: false, message: 'Invalid token' });
+  }
+}
+
 // ── GET /api/files/my ─────────────────────────────────────────────────────────
-// Returns all files belonging to the logged-in patient.
-// NOTE: must be defined BEFORE  /:fileId  routes to avoid "my" being treated as an ID.
+// IMPORTANT: must be defined BEFORE /:fileId routes
 router.get('/my', requireAuth, async (req, res) => {
   try {
     const userId  = req.user.id || req.user.userId;
-    const patient = await prisma.patient.findUnique({
-      where:  { userId },
-      select: { id: true },
-    });
-    if (!patient) return res.json({ success: true, data: [] }); // graceful empty
+    const patient = await prisma.patient.findUnique({ where: { userId }, select: { id: true } });
+    if (!patient) return res.json({ success: true, data: [] });
 
     const files = await prisma.medicalFile.findMany({
       where:   { patientId: patient.id },
       orderBy: { createdAt: 'desc' },
       take:    100,
     });
-
     return res.json({ success: true, data: files });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
@@ -385,15 +394,15 @@ router.get('/my', requireAuth, async (req, res) => {
 });
 
 // ── GET /api/files/:fileId/download ──────────────────────────────────────────
-// Authenticated file download — works on Railway (no static file serving needed).
-router.get('/:fileId/download', requireAuth, async (req, res) => {
+// Forces browser Save dialog by setting Content-Disposition: attachment.
+// Accepts auth token via Authorization header OR ?token= query param.
+router.get('/:fileId/download', requireAuthFlex, async (req, res) => {
   try {
     const file = await prisma.medicalFile.findUnique({ where: { id: req.params.fileId } });
     if (!file) return res.status(404).json({ success: false, message: 'File not found' });
 
-    // Ownership check — patient can download their own files; doctor can download patient files
-    const userId = req.user.id || req.user.userId;
-    const isOwner = file.uploadedBy === userId || file.uploadedById === userId;
+    const userId   = req.user.id || req.user.userId;
+    const isOwner  = file.uploadedBy === userId || file.uploadedById === userId;
     const isDoctor = req.user.role === 'DOCTOR';
     if (!isOwner && !isDoctor) {
       return res.status(403).json({ success: false, message: 'Access denied' });
@@ -401,14 +410,15 @@ router.get('/:fileId/download', requireAuth, async (req, res) => {
 
     const diskPath = resolveDiskPath(file);
     if (!diskPath) {
-      return res.status(404).json({ success: false, message: 'File not found on disk. It may have been moved or deleted.' });
+      return res.status(404).json({ success: false, message: 'File not on disk' });
     }
 
-    const mime = file.mimeType || file.fileType || 'application/octet-stream';
-    const name = file.fileName || require('path').basename(diskPath);
+    const mime     = file.mimeType || file.fileType || 'application/octet-stream';
+    const fileName = file.fileName || require('path').basename(diskPath);
 
+    // Content-Disposition: attachment forces Save dialog in ALL browsers
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fileName)}"`);
     res.setHeader('Content-Type', mime);
-    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(name)}"`);
     res.setHeader('Content-Length', require('fs').statSync(diskPath).size);
 
     require('fs').createReadStream(diskPath).pipe(res);
@@ -419,28 +429,23 @@ router.get('/:fileId/download', requireAuth, async (req, res) => {
 });
 
 // ── DELETE /api/files/:fileId ─────────────────────────────────────────────────
-// Deletes the DB record AND the file from disk.
 router.delete('/:fileId', requireAuth, async (req, res) => {
   try {
     const file = await prisma.medicalFile.findUnique({ where: { id: req.params.fileId } });
     if (!file) return res.status(404).json({ success: false, message: 'File not found' });
 
-    // Only the uploader or an admin can delete
-    const userId = req.user.id || req.user.userId;
+    const userId  = req.user.id || req.user.userId;
     const isOwner = file.uploadedBy === userId || file.uploadedById === userId;
     if (!isOwner && req.user.role !== 'ADMIN') {
       return res.status(403).json({ success: false, message: 'Access denied' });
     }
 
-    // Delete from disk first (best-effort — don't fail if file is missing)
     const diskPath = resolveDiskPath(file);
     if (diskPath) {
-      try { require('fs').unlinkSync(diskPath); } catch { /* file already gone — that's fine */ }
+      try { require('fs').unlinkSync(diskPath); } catch { /* already gone — fine */ }
     }
 
-    // Delete from DB
     await prisma.medicalFile.delete({ where: { id: req.params.fileId } });
-
     return res.json({ success: true, message: 'File deleted' });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
