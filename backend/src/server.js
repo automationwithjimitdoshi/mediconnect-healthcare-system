@@ -15,15 +15,22 @@ const fs      = require('fs');
 
 const app    = express();
 const server = http.createServer(app);
-const googlePlacesRoute = require('./routes/googlePlaces');
-app.use('/api/google-places', googlePlacesRoute);
 
 // ── Socket.io ─────────────────────────────────────────────────────────────────
 let io;
 try {
   const { Server } = require('socket.io');
   io = new Server(server, {
-    cors: { origin: ['http://localhost:3000', process.env.FRONTEND_URL].filter(Boolean), credentials: true },
+    // ✅ FIX: Added Vercel frontend URL to Socket.io CORS allowed origins
+    cors: {
+      origin: [
+        'http://localhost:3000',
+        'http://localhost:3001',
+        'https://mediconnect-healthcare-system.vercel.app',
+        process.env.FRONTEND_URL,
+      ].filter(Boolean),
+      credentials: true,
+    },
   });
   app.set('io', io);
   io.on('connection', socket => {
@@ -36,6 +43,7 @@ try {
 }
 
 // ── Core middleware ───────────────────────────────────────────────────────────
+// ✅ FIX: Global CORS must be registered BEFORE any route definitions
 app.use(cors({
   origin: function(origin, callback) {
     // Allow requests with no origin (mobile apps, curl, Postman)
@@ -71,6 +79,12 @@ app.use('/uploads', express.static(uploadsDir));
 console.log('✓ Uploads:', uploadsDir);
 
 // ── Routes ────────────────────────────────────────────────────────────────────
+// ✅ FIX: googlePlaces route is now registered HERE — after app.use(cors(...))
+//    Previously it was registered at the very top before CORS middleware,
+//    which meant the browser's preflight OPTIONS request received no
+//    Access-Control-Allow-Origin header → CORS blocked.
+app.use('/api/google-places', require('./routes/googlePlaces'));
+
 app.use('/api/auth',         require('./routes/auth'));
 app.use('/api/doctors',      require('./routes/doctors'));
 app.use('/api/patients',     require('./routes/patients'));
@@ -91,13 +105,14 @@ app.get('/health', (_req, res) => res.json({ status: 'ok', time: new Date().toIS
 // ── Diagnostic endpoint (shows which env vars are set) ────────────────────────
 app.get('/api/debug/env', (_req, res) => {
   res.json({
-    NODE_ENV:          process.env.NODE_ENV || 'NOT SET',
-    JWT_SECRET:        process.env.JWT_SECRET ? '✓ SET' : '❌ MISSING',
-    DATABASE_URL:      process.env.DATABASE_URL ? '✓ SET' : '❌ MISSING',
-    GEMINI_API_KEY:    process.env.GEMINI_API_KEY ? '✓ SET' : '❌ MISSING',
-    ADMIN_SECRET:      process.env.ADMIN_SECRET ? '✓ SET' : '❌ MISSING',
-    FRONTEND_URL:      process.env.FRONTEND_URL || 'NOT SET',
-    PORT:              process.env.PORT || '5000',
+    NODE_ENV:               process.env.NODE_ENV || 'NOT SET',
+    JWT_SECRET:             process.env.JWT_SECRET ? '✓ SET' : '❌ MISSING',
+    DATABASE_URL:           process.env.DATABASE_URL ? '✓ SET' : '❌ MISSING',
+    GEMINI_API_KEY:         process.env.GEMINI_API_KEY ? '✓ SET' : '❌ MISSING',
+    GOOGLE_PLACES_API_KEY:  process.env.GOOGLE_PLACES_API_KEY ? '✓ SET' : '❌ MISSING',
+    ADMIN_SECRET:           process.env.ADMIN_SECRET ? '✓ SET' : '❌ MISSING',
+    FRONTEND_URL:           process.env.FRONTEND_URL || 'NOT SET',
+    PORT:                   process.env.PORT || '5000',
   });
 });
 

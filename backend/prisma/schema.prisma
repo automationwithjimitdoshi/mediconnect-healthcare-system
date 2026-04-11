@@ -358,3 +358,13 @@ model AbhaRecord {
   fetchedAt   DateTime @default(now())
   createdAt   DateTime @default(now())
 }
+
+model ShareToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  reportId  String
+  createdBy String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+}
