@@ -172,30 +172,27 @@ export default function PatientFilesPage() {
   }
 
   // ── Download ─────────────────────────────────────────────────────────────────
-  // Uses fetch→blob→anchor. Express serves /uploads as static so no auth needed.
-  // fetch+blob forces Save dialog — browser never opens file in a new tab.
   async function handleDownload(file) {
     setDownloading(file.id);
     try {
-      const rawUrl = file.storageUrl || file.fileUrl || '';
-      if (!rawUrl) { showToast('File URL not available', 'err'); return; }
-
-      // Build absolute static URL — works local and Railway
-      const staticUrl = rawUrl.startsWith('http') ? rawUrl : `${BASE}${rawUrl}`;
-
-      const r = await fetch(staticUrl);
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-
+      // Use authenticated API endpoint — backend reads file from disk using storageKey
+      // fetch+blob+anchor.download forces Save dialog (never opens in tab)
+      const r = await fetch(`${API}/files/${file.id}/download`, {
+        headers: { Authorization: `Bearer ${tok()}` },
+      });
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}));
+        throw new Error(err.message || `HTTP ${r.status}`);
+      }
       const blob = await r.blob();
       const url  = URL.createObjectURL(blob);
       const a    = document.createElement('a');
       a.href     = url;
-      a.download = file.fileName || 'download'; // triggers Save dialog
+      a.download = file.fileName || 'file';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(url), 5000);
-
       showToast(`✅ ${file.fileName} downloaded`);
     } catch (err) {
       showToast('Download failed: ' + err.message, 'err');

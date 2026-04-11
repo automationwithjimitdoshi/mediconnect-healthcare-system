@@ -36,15 +36,19 @@ export default function TopDoctorsCard({ specialty, token, onBook }) {
   const [error,   setError]   = useState('');
   const inputRef = useRef(null);
 
-  // On first mount: load saved city and auto-search if we have one
+  // On first mount only: load saved city and auto-search
+  // Using useRef to ensure this runs exactly once and never interferes with typing
+  const didInit = useRef(false);
   useEffect(() => {
-    if (!specialty) return;
+    if (didInit.current || !specialty) return;
+    didInit.current = true;
     const last = savedCity();
     if (last) {
       setCity(last);
-      doSearch(last);
+      // Delay slightly so state is set before search fires
+      setTimeout(() => doSearch(last), 50);
     }
-  }, [specialty]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function doSearch(cityOverride) {
     const c = (cityOverride ?? city).trim();

@@ -37,41 +37,69 @@ function getFileUrl(filename, category) {
 // Resolve the actual disk path for any file.
 // files.js uploads have filePath (absolute path).
 // chat.js uploads have storageUrl ('/uploads/pdfs/xxx.pdf') or storageKey ('xxx.pdf').
+// function resolveDiskPath(file) {
+//   // 1. Direct absolute path (files.js)
+//   if (file.filePath && fs.existsSync(file.filePath)) return file.filePath;
+
+//   // Find uploads directory
+//   const candidates = [
+//     path.join(__dirname, '..', '..', 'uploads'),
+//     path.join(__dirname, '..', 'uploads'),
+//     path.join(process.cwd(), 'uploads'),
+//   ];
+//   const UPLOAD_DIR = candidates.find(d => fs.existsSync(d));
+//   if (!UPLOAD_DIR) return null;
+
+//   // 2. storageUrl like '/uploads/pdfs/abc123.pdf'
+//   if (file.storageUrl) {
+//     const rel = file.storageUrl.replace(/^\/+/, '').replace(/^uploads\//, '');
+//     const p = path.join(UPLOAD_DIR, rel);
+//     if (fs.existsSync(p)) return p;
+//   }
+
+//   // 3. storageKey = just the filename
+//   if (file.storageKey) {
+//     for (const sub of ['pdfs', 'images', 'documents', 'dicom']) {
+//       const p = path.join(UPLOAD_DIR, sub, file.storageKey);
+//       if (fs.existsSync(p)) return p;
+//     }
+//   }
+
+//   // 4. fileUrl like '/uploads/pdfs/abc123.pdf'
+//   if (file.fileUrl) {
+//     const rel = file.fileUrl.replace(/^\/+/, '').replace(/^uploads\//, '');
+//     const p = path.join(UPLOAD_DIR, rel);
+//     if (fs.existsSync(p)) return p;
+//   }
+
+//   return null;
+// }
+
 function resolveDiskPath(file) {
-  // 1. Direct absolute path (files.js)
-  if (file.filePath && fs.existsSync(file.filePath)) return file.filePath;
-
-  // Find uploads directory
-  const candidates = [
-    path.join(__dirname, '..', '..', 'uploads'),
-    path.join(__dirname, '..', 'uploads'),
-    path.join(process.cwd(), 'uploads'),
-  ];
-  const UPLOAD_DIR = candidates.find(d => fs.existsSync(d));
-  if (!UPLOAD_DIR) return null;
-
-  // 2. storageUrl like '/uploads/pdfs/abc123.pdf'
+  const p    = require('path');
+  const fs2  = require('fs');
+ 
+  // 1. storageKey is always the absolute path written at upload time
+  if (file.storageKey && fs2.existsSync(file.storageKey)) return file.storageKey;
+ 
+  // 2. storageUrl is '/uploads/pdfs/file.PDF' — resolve relative to app root
   if (file.storageUrl) {
-    const rel = file.storageUrl.replace(/^\/+/, '').replace(/^uploads\//, '');
-    const p = path.join(UPLOAD_DIR, rel);
-    if (fs.existsSync(p)) return p;
-  }
-
-  // 3. storageKey = just the filename
-  if (file.storageKey) {
-    for (const sub of ['pdfs', 'images', 'documents', 'dicom']) {
-      const p = path.join(UPLOAD_DIR, sub, file.storageKey);
-      if (fs.existsSync(p)) return p;
+    const roots = [
+      p.join(__dirname, '..', '..'),       // mediconnect app/
+      p.join(__dirname, '..'),             // backend/
+      p.join(__dirname),                   // backend/src/
+    ];
+    for (const root of roots) {
+      const abs = p.join(root, file.storageUrl);
+      if (fs2.existsSync(abs)) return abs;
     }
+    // Also try stripping leading slash and joining with uploads dir
+    const uploadsDir = p.join(__dirname, '..', '..', 'uploads');
+    const rel = file.storageUrl.replace(/^\/uploads\//, '');
+    const abs2 = p.join(uploadsDir, rel);
+    if (fs2.existsSync(abs2)) return abs2;
   }
-
-  // 4. fileUrl like '/uploads/pdfs/abc123.pdf'
-  if (file.fileUrl) {
-    const rel = file.fileUrl.replace(/^\/+/, '').replace(/^uploads\//, '');
-    const p = path.join(UPLOAD_DIR, rel);
-    if (fs.existsSync(p)) return p;
-  }
-
+ 
   return null;
 }
 
@@ -376,18 +404,69 @@ function requireAuthFlex(req, res, next) {
 
 // ── GET /api/files/my ─────────────────────────────────────────────────────────
 // IMPORTANT: must be defined BEFORE /:fileId routes
+// router.get('/my', requireAuth, async (req, res) => {
+//   try {
+//     const userId  = req.user.id || req.user.userId;
+//     const patient = await prisma.patient.findUnique({ where: { userId }, select: { id: true } });
+//     if (!patient) return res.json({ success: true, data: [] });
+
+//     const files = await prisma.medicalFile.findMany({
+//       where:   { patientId: patient.id },
+//       orderBy: { createdAt: 'desc' },
+//       take:    100,
+//     });
+//     return res.json({ success: true, data: files });
+//   } catch (err) {
+//     return res.status(500).json({ success: false, message: err.message });
+//   }
+// });
+
 router.get('/my', requireAuth, async (req, res) => {
   try {
     const userId  = req.user.id || req.user.userId;
     const patient = await prisma.patient.findUnique({ where: { userId }, select: { id: true } });
     if (!patient) return res.json({ success: true, data: [] });
-
     const files = await prisma.medicalFile.findMany({
       where:   { patientId: patient.id },
       orderBy: { createdAt: 'desc' },
       take:    100,
     });
     return res.json({ success: true, data: files });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ── GET /api/files/:id/download ───────────────────────────────────────────────
+// Reads file from disk using storageKey, streams with Content-Disposition: attachment
+// Called by frontend with Authorization header → fetch+blob → Save dialog
+router.get('/:fileId/download', requireAuth, async (req, res) => {
+  try {
+    const file = await prisma.medicalFile.findUnique({ where: { id: req.params.fileId } });
+    if (!file) return res.status(404).json({ success: false, message: 'File not found' });
+ 
+    const userId  = req.user.id || req.user.userId;
+    const isOwner = file.uploadedBy === userId || file.uploadedById === userId;
+    if (!isOwner && req.user.role !== 'DOCTOR' && req.user.role !== 'ADMIN') {
+      return res.status(403).json({ success: false, message: 'Access denied' });
+    }
+ 
+    const diskPath = resolveDiskPath(file);
+    if (!diskPath) {
+      return res.status(404).json({
+        success: false,
+        message: 'File not on disk. storageKey: ' + (file.storageKey || 'none') + ', storageUrl: ' + (file.storageUrl || 'none'),
+      });
+    }
+ 
+    const fileName = file.fileName || require('path').basename(diskPath);
+    const mime     = file.mimeType || file.fileType || 'application/octet-stream';
+ 
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fileName)}"`);
+    res.setHeader('Content-Type', mime);
+    res.setHeader('Content-Length', require('fs').statSync(diskPath).size);
+    require('fs').createReadStream(diskPath).pipe(res);
+ 
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }
@@ -429,22 +508,44 @@ router.get('/:fileId/download', requireAuthFlex, async (req, res) => {
 });
 
 // ── DELETE /api/files/:fileId ─────────────────────────────────────────────────
+// router.delete('/:fileId', requireAuth, async (req, res) => {
+//   try {
+//     const file = await prisma.medicalFile.findUnique({ where: { id: req.params.fileId } });
+//     if (!file) return res.status(404).json({ success: false, message: 'File not found' });
+
+//     const userId  = req.user.id || req.user.userId;
+//     const isOwner = file.uploadedBy === userId || file.uploadedById === userId;
+//     if (!isOwner && req.user.role !== 'ADMIN') {
+//       return res.status(403).json({ success: false, message: 'Access denied' });
+//     }
+
+//     const diskPath = resolveDiskPath(file);
+//     if (diskPath) {
+//       try { require('fs').unlinkSync(diskPath); } catch { /* already gone — fine */ }
+//     }
+
+//     await prisma.medicalFile.delete({ where: { id: req.params.fileId } });
+//     return res.json({ success: true, message: 'File deleted' });
+//   } catch (err) {
+//     return res.status(500).json({ success: false, message: err.message });
+//   }
+// });
+
+// ── DELETE /api/files/:id ─────────────────────────────────────────────────────
 router.delete('/:fileId', requireAuth, async (req, res) => {
   try {
     const file = await prisma.medicalFile.findUnique({ where: { id: req.params.fileId } });
     if (!file) return res.status(404).json({ success: false, message: 'File not found' });
-
+ 
     const userId  = req.user.id || req.user.userId;
     const isOwner = file.uploadedBy === userId || file.uploadedById === userId;
     if (!isOwner && req.user.role !== 'ADMIN') {
       return res.status(403).json({ success: false, message: 'Access denied' });
     }
-
+ 
     const diskPath = resolveDiskPath(file);
-    if (diskPath) {
-      try { require('fs').unlinkSync(diskPath); } catch { /* already gone — fine */ }
-    }
-
+    if (diskPath) { try { require('fs').unlinkSync(diskPath); } catch {} }
+ 
     await prisma.medicalFile.delete({ where: { id: req.params.fileId } });
     return res.json({ success: true, message: 'File deleted' });
   } catch (err) {
