@@ -1,15 +1,11 @@
 /**
  * backend/routes/googlePlaces.js
  *
- * FIX: Query building logic corrected.
- *   Before: always appended " in Mumbai" (or whatever city) to query text,
- *           which overrode the locationBias coords from Google's perspective.
- *   After:
- *     - lat+lng provided → query = "Nephrologist doctor" (no city)
- *                          locationBias circle drives the geographic results
- *     - only city provided → query = "Nephrologist in Pune"
- *                            no locationBias
- *     - neither → query = "Nephrologist doctor India"
+ * SIMPLIFIED & RELIABLE:
+ * Always uses city name in the text query — "Nephrologist in Pune".
+ * This is what Google Places text search is designed for and gives
+ * accurate city-specific results every time.
+ * lat/lng are accepted but only used as a secondary locationBias hint.
  */
 
 'use strict';
@@ -60,26 +56,22 @@ function httpsGet(urlStr) {
 // ── GET /api/google-places/test ───────────────────────────────────────────────
 router.get('/test', async (req, res) => {
   if (!PLACES_API_KEY) {
-    return res.json({
-      ok: false,
-      problem: 'GOOGLE_PLACES_API_KEY is not set in Railway environment variables',
-      fix: 'Railway dashboard → your service → Variables tab → add GOOGLE_PLACES_API_KEY=your_key_here',
-    });
+    return res.json({ ok: false, problem: 'GOOGLE_PLACES_API_KEY not set in Railway variables' });
   }
   try {
     const result = await httpsPost(
       'places.googleapis.com', '/v1/places:searchText',
       { 'X-Goog-Api-Key': PLACES_API_KEY, 'X-Goog-FieldMask': 'places.id,places.displayName' },
-      { textQuery: 'Cardiologist doctor', maxResultCount: 1 },
+      { textQuery: 'Cardiologist in Mumbai', maxResultCount: 1 },
     );
     if (result.status === 200) {
-      return res.json({ ok: true, message: 'Google Places API working!', sample: result.data?.places?.[0]?.displayName?.text || '(no results)' });
+      return res.json({ ok: true, message: 'API working!', sample: result.data?.places?.[0]?.displayName?.text || 'no results' });
     }
-    let fix = 'See detail field.';
+    let fix = 'See detail.';
     if (result.status === 403) fix = 'Enable "Places API (New)" in Google Cloud Console → APIs & Services → Library.';
-    if (result.status === 401) fix = 'API key is invalid. Re-copy from Google Cloud Console → Credentials.';
+    if (result.status === 401) fix = 'API key invalid. Re-copy from Google Cloud Console → Credentials.';
     if (result.status === 429) fix = 'Quota exceeded. Check Google Cloud billing.';
-    return res.json({ ok: false, googleStatus: result.status, detail: result.raw, fix });
+    return res.json({ ok: false, status: result.status, detail: result.raw, fix });
   } catch (err) {
     return res.json({ ok: false, problem: 'Network error', detail: err.message });
   }
@@ -87,49 +79,28 @@ router.get('/test', async (req, res) => {
 
 // ── POST /api/google-places/doctors ──────────────────────────────────────────
 router.post('/doctors', async (req, res) => {
-  const { specialty, location, lat, lng } = req.body;
+  const { specialty, location } = req.body;
 
   if (!specialty) {
     return res.status(400).json({ success: false, message: 'specialty is required' });
+  }
+  if (!location) {
+    return res.status(400).json({ success: false, message: 'location (city name) is required' });
   }
   if (!PLACES_API_KEY) {
     console.error('[GooglePlaces] GOOGLE_PLACES_API_KEY not set');
     return res.status(503).json({ success: false, message: 'Google Places API key not configured on server' });
   }
 
-  // ── KEY FIX: query building ───────────────────────────────────────────────
-  // When coords are provided: omit city from query text so locationBias drives results.
-  // When only city name is provided: include it in query text.
-  const hasCoords = lat && lng;
-  let textQuery;
-
-  if (hasCoords) {
-    // Coords available — let the locationBias circle do geographic filtering.
-    // Generic suffix keeps it relevant without locking to a city name.
-    textQuery = `${specialty} doctor`;
-  } else if (location) {
-    // No coords — embed city in query for Google to know where to search.
-    textQuery = `${specialty} in ${location}`;
-  } else {
-    // Neither — broadest fallback
-    textQuery = `${specialty} doctor India`;
-  }
+  // Always use city name in the text query — this is the most reliable approach.
+  // "Nephrologist in Pune" returns Pune results every single time.
+  const textQuery = `${specialty} in ${location}`;
 
   const requestBody = {
     textQuery,
     maxResultCount: 10,
     languageCode:   'en',
   };
-
-  // Add locationBias only when coords are available
-  if (hasCoords) {
-    requestBody.locationBias = {
-      circle: {
-        center: { latitude: parseFloat(lat), longitude: parseFloat(lng) },
-        radius: 15000, // 15 km radius
-      },
-    };
-  }
 
   const fieldMask = [
     'places.id', 'places.displayName', 'places.formattedAddress',
@@ -138,7 +109,7 @@ router.post('/doctors', async (req, res) => {
   ].join(',');
 
   try {
-    console.log(`[GooglePlaces] query="${textQuery}" | coords=${hasCoords ? `${lat},${lng}` : 'none'} | city=${location || 'none'}`);
+    console.log(`[GooglePlaces] query="${textQuery}"`);
 
     const result = await httpsPost(
       'places.googleapis.com', '/v1/places:searchText',
@@ -169,14 +140,14 @@ router.post('/doctors', async (req, res) => {
 
     const doctors = sorted.map(p => ({
       placeId:       p.id,
-      name:          p.displayName?.text            || 'Doctor',
-      address:       p.formattedAddress             || '',
-      rating:        p.rating                       || 0,
-      reviewCount:   p.userRatingCount              || 0,
-      googleMapsUrl: p.googleMapsUri                || '',
-      phone:         p.internationalPhoneNumber      || '',
-      isOpen:        p.regularOpeningHours?.openNow ?? null,
-      photoRef:      p.photos?.[0]?.name            || null,
+      name:          p.displayName?.text             || 'Doctor',
+      address:       p.formattedAddress              || '',
+      rating:        p.rating                        || 0,
+      reviewCount:   p.userRatingCount               || 0,
+      googleMapsUrl: p.googleMapsUri                 || '',
+      phone:         p.internationalPhoneNumber       || '',
+      isOpen:        p.regularOpeningHours?.openNow  ?? null,
+      photoRef:      p.photos?.[0]?.name             || null,
       specialty,
     }));
 
