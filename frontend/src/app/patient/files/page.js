@@ -97,7 +97,7 @@ export default function PatientFilesPage() {
   const [deleting,    setDeleting]    = useState(null);  // id being deleted
   const [downloading, setDownloading] = useState(null);  // id being downloaded
 
-  const tok = () => getToken('PATIENT') || getToken('DOCTOR') || '';
+  const tok = () => { try { return localStorage.getItem("mc_token") || localStorage.getItem("token") || localStorage.getItem("mc_patient_token") || localStorage.getItem("mc_doctor_token") || getToken("PATIENT") || getToken("DOCTOR") || ""; } catch { return ""; } };
 
   function showToast(msg, type = 'ok') {
     setToast({ msg, type });
@@ -157,32 +157,59 @@ export default function PatientFilesPage() {
     }
   }
 
-  // ── Download: direct anchor href — no fetch, no CORS, no connection issues ──
-  // Sets window.location to the file URL with a ?download=1 query param.
-  // The backend serves /uploads as static — Express sends Content-Disposition
-  // attachment header for unknown MIME types, triggering Save dialog.
-  // For PDFs/images that browsers open inline, we use the /api/files/:id/download
-  // endpoint which forces Content-Disposition: attachment via the response header.
-  function handleDownload(file) {
-    const rawUrl = file.storageUrl || file.fileUrl || '';
-    if (!rawUrl) { showToast('File URL not available', 'err'); return; }
+  // ── Download ─────────────────────────────────────────────────────────────────
+  // Strategy: fetch the file as a blob using Authorization header,
+  // then trigger a Save dialog via createObjectURL. This always works
+  // locally and on Railway without opening new tabs or leaking tokens in URLs.
+  async function handleDownload(file) {
+    setDownloading(file.id);
+    const token = tok();
 
-    // Build the absolute URL using the correct base (works local + Railway)
-    const staticUrl = rawUrl.startsWith('http') ? rawUrl : `${BASE}${rawUrl}`;
+    try {
+      // Step 1: try authenticated API endpoint (sets Content-Disposition: attachment)
+      if (token) {
+        const r = await fetch(`${API}/files/${file.id}/download`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (r.ok) {
+          const blob = await r.blob();
+          triggerSave(blob, file.fileName);
+          showToast(`✅ ${file.fileName} downloaded`);
+          return;
+        }
+      }
 
-    // Use the API download endpoint — it sets Content-Disposition: attachment
-    // so the browser always saves instead of opening inline
-    const downloadUrl = `${API}/files/${file.id}/download?token=${encodeURIComponent(tok())}`;
+      // Step 2: fallback — fetch static URL directly (Express serves /uploads as static)
+      const rawUrl = file.storageUrl || file.fileUrl || '';
+      if (!rawUrl) { showToast('File URL not available', 'err'); return; }
+      const staticUrl = rawUrl.startsWith('http') ? rawUrl : `${BASE}${rawUrl}`;
+      const r2 = await fetch(staticUrl);
+      if (r2.ok) {
+        const blob = await r2.blob();
+        triggerSave(blob, file.fileName);
+        showToast(`✅ ${file.fileName} downloaded`);
+        return;
+      }
 
+      showToast('Download failed — file may have been moved.', 'err');
+    } catch (err) {
+      showToast('Download failed: ' + err.message, 'err');
+    } finally {
+      setDownloading(null);
+    }
+  }
+
+  // Creates an invisible <a> and clicks it to trigger browser Save dialog
+  function triggerSave(blob, fileName) {
+    const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href     = downloadUrl;
-    a.download = file.fileName || 'download';
-    a.target   = '_blank'; // open in new tab as safety fallback
+    a.href = url;
+    a.download = fileName || 'download';
+    // NO target="_blank" — that causes new tab + JSON display
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-
-    showToast(`⬇️ Downloading ${file.fileName}…`);
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
   }
 
   // ── Delete ────────────────────────────────────────────────────────────────
@@ -378,9 +405,9 @@ export default function PatientFilesPage() {
                       </button>
 
                       {/* Download */}
-                      <button onClick={() => handleDownload(file)} disabled={isDeleting}
-                        style={{ padding: '6px 12px', background: SURFACE, color: SEC, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: isDeleting ? 'not-allowed' : 'pointer', minWidth: 90, textAlign: 'center' }}>
-                        ↓ Download
+                      <button onClick={() => handleDownload(file)} disabled={isDling || isDeleting}
+                        style={{ padding: '6px 12px', background: SURFACE, color: SEC, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: (isDling || isDeleting) ? 'not-allowed' : 'pointer', minWidth: 90, textAlign: 'center' }}>
+                        {isDling ? '⏳ …' : '↓ Download'}
                       </button>
 
                       {/* Delete */}
