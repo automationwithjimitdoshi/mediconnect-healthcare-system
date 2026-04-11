@@ -345,7 +345,7 @@ router.get('/doctor/patient/:patientId/actions', requireAuth, async(req,res)=>{
  * POST /api/reports/share
  * Generates a shareable link for a report (72-hour expiry).
  */
-router.post('/share', authenticateToken, async (req, res) => {
+router.post('/share', requireAuth, async (req, res) => {
   try {
     const { reportId } = req.body;
 
@@ -433,7 +433,7 @@ router.get('/shared/:shareToken/meta', async (req, res) => {
  * GET /api/reports/shared/:shareToken
  * Returns full report data for authenticated users.
  */
-router.get('/shared/:shareToken', authenticateToken, async (req, res) => {
+router.get('/shared/:shareToken', requireAuth, async (req, res) => {
   try {
     const record = await prisma.shareToken.findUnique({
       where: { token: req.params.shareToken },
