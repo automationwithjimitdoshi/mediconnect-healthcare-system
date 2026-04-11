@@ -2367,7 +2367,11 @@ async function analyzeForPatient({ filePath, category, fileName, patientAge, pat
         '.\n' + langInstr + '\nReturn ONLY valid JSON — no markdown:\n' + ANALYSIS_JSON_SCHEMA);
 
       console.log('[analyzeForPatient] Trying OpenAI...');
-      const raw = await tryOpenAI(fileContent, 4096);
+      // fileContent is an array of content blocks — wrap in proper messages array
+      const raw = await tryOpenAI([
+        { role: 'system', content: 'You are a medical report analyzer. Return only valid JSON.' },
+        { role: 'user',   content: fileContent },
+      ], 4096);
 
       if (raw) {
         const parsed = parseJSON(raw, null);

@@ -172,32 +172,39 @@ export default function PatientFilesPage() {
   }
 
   // ── Download ─────────────────────────────────────────────────────────────────
-  // Uses the static /uploads URL that Express already serves.
-  // fetch→blob→anchor.download forces Save dialog — never opens in a new tab.
   async function handleDownload(file) {
     setDownloading(file.id);
     try {
-      const rawUrl = file.storageUrl || file.fileUrl || '';
-      if (!rawUrl) throw new Error('No file URL stored for this file');
+      // Attempt 1: authenticated API endpoint (uses storageKey absolute path on disk)
+      let r = await fetch(`${API}/files/${file.id}/download`, {
+        headers: { Authorization: `Bearer ${tok()}` },
+      });
 
-      // BASE is derived from API by stripping /api — same host, correct port
-      const staticUrl = rawUrl.startsWith('http') ? rawUrl : `${BASE}${rawUrl}`;
+      // Attempt 2: static URL via Express /uploads static middleware
+      if (!r.ok) {
+        const rawUrl = file.storageUrl || file.fileUrl || '';
+        if (rawUrl) {
+          const staticUrl = rawUrl.startsWith('http') ? rawUrl : `${BASE}${rawUrl}`;
+          r = await fetch(staticUrl);
+        }
+      }
 
-      const r = await fetch(staticUrl);
-      if (!r.ok) throw new Error(`Server returned ${r.status} for ${staticUrl}`);
+      if (!r.ok) {
+        throw new Error('File not found on server. Railway redeploys clear uploaded files — please re-upload this report.');
+      }
 
-      const blob = await r.blob();
-      const blobUrl = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = blobUrl;
+      const blob   = await r.blob();
+      const objUrl = URL.createObjectURL(blob);
+      const a      = document.createElement('a');
+      a.href     = objUrl;
       a.download = file.fileName || 'download';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+      setTimeout(() => URL.revokeObjectURL(objUrl), 5000);
       showToast(`✅ ${file.fileName} downloaded`);
     } catch (err) {
-      showToast('Download failed: ' + err.message, 'err');
+      showToast(err.message, 'err');
     } finally {
       setDownloading(null);
     }
