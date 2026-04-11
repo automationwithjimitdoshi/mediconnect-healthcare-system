@@ -23,9 +23,32 @@ const fetch   = (...args) => import('node-fetch').then(({ default: f }) => f(...
 
 const PLACES_API_KEY = process.env.GOOGLE_PLACES_API_KEY;
 
-// Optional: require auth so only logged-in users can call it
-// const { authenticate } = require('../middleware/auth');
-// router.use(authenticate);
+// Allowed frontend origins
+const ALLOWED_ORIGINS = [
+  'https://mediconnect-healthcare-system.vercel.app',
+  'http://localhost:3000',
+  'http://localhost:3001',
+];
+
+// ── CORS middleware — applies to every route in this router ──────────────────
+router.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (ALLOWED_ORIGINS.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  } else {
+    // Allow all origins in development or if no origin header (server-to-server)
+    res.setHeader('Access-Control-Allow-Origin', '*');
+  }
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Max-Age', '86400'); // cache preflight 24h
+
+  // Handle OPTIONS preflight immediately — do NOT pass to route handler
+  if (req.method === 'OPTIONS') {
+    return res.status(204).end();
+  }
+  next();
+});
 
 /**
  * POST /api/google-places/doctors
