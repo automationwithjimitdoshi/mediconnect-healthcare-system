@@ -156,39 +156,37 @@ export default function PatientFilesPage() {
     }
   }
 
-  // ── Download: use authenticated /api/files/:id/download endpoint ─────────
+  // ── Download: fetch blob from static URL → trigger browser save dialog ──────
+  // Express serves /uploads as static — no auth needed, always works locally.
+  // Using fetch→blob→anchor forces the browser to SAVE the file instead of opening it.
   async function handleDownload(file) {
     setDownloading(file.id);
     try {
-      // Try authenticated download endpoint first
-      const r = await fetch(`${API}/files/${file.id}/download`, {
-        headers: { Authorization: `Bearer ${tok()}` },
-      });
-
-      if (r.ok) {
-        const blob = await r.blob();
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = file.fileName || 'download';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(a.href);
-        showToast(`✅ ${file.fileName} downloaded`);
-        return;
-      }
-
-      // Fallback: construct static URL and open in new tab
       const rawUrl = file.storageUrl || file.fileUrl || '';
+      if (!rawUrl) { showToast('File URL not available', 'err'); return; }
+
+      // Build absolute static URL: '/uploads/pdfs/abc.PDF' → 'http://localhost:5000/uploads/pdfs/abc.PDF'
       const staticUrl = rawUrl.startsWith('http') ? rawUrl : `${BASE}${rawUrl}`;
-      if (staticUrl && staticUrl !== BASE) {
-        window.open(staticUrl, '_blank');
-        showToast('Opened in new tab');
-      } else {
-        showToast('Download URL not available', 'err');
-      }
-    } catch {
-      showToast('Download failed. Try again.', 'err');
+
+      // fetch the file as a blob — this forces download instead of browser navigation
+      const r = await fetch(staticUrl);
+      if (!r.ok) throw new Error(`Server returned ${r.status}`);
+
+      const blob = await r.blob();
+      const blobUrl = URL.createObjectURL(blob);
+
+      // Create a hidden anchor with `download` attribute — triggers Save dialog
+      const a = document.createElement('a');
+      a.href     = blobUrl;
+      a.download = file.fileName || 'download'; // filename shown in Save dialog
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
+
+      showToast(`✅ ${file.fileName} downloaded`);
+    } catch (err) {
+      showToast('Download failed: ' + err.message, 'err');
     } finally {
       setDownloading(null);
     }
