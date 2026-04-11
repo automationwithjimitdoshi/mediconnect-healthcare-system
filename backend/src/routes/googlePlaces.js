@@ -1,14 +1,15 @@
 /**
  * backend/routes/googlePlaces.js
- * ================================
- * Proxy for Google Places API (New) — Text Search.
  *
- * FIXES in this version:
- *  - Uses built-in https module (no node-fetch / ESM crash on Railway)
- *  - Added GET /api/google-places/test  → open in browser to diagnose API key
- *  - Removed minRating filter (was silently killing results for rare specialties)
- *  - Location is fully optional — works without lat/lng
- *  - Full Google error logged to Railway so you can see the real reason for 502
+ * FIX: Query building logic corrected.
+ *   Before: always appended " in Mumbai" (or whatever city) to query text,
+ *           which overrode the locationBias coords from Google's perspective.
+ *   After:
+ *     - lat+lng provided → query = "Nephrologist doctor" (no city)
+ *                          locationBias circle drives the geographic results
+ *     - only city provided → query = "Nephrologist in Pune"
+ *                            no locationBias
+ *     - neither → query = "Nephrologist doctor India"
  */
 
 'use strict';
@@ -19,13 +20,14 @@ const router  = express.Router();
 
 const PLACES_API_KEY = process.env.GOOGLE_PLACES_API_KEY;
 
-// ── Built-in HTTPS POST ───────────────────────────────────────────────────────
 function httpsPost(hostname, path, headers, body) {
   return new Promise((resolve, reject) => {
     const bodyStr = JSON.stringify(body);
     const req = https.request(
-      { hostname, path, method: 'POST', timeout: 20000,
-        headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(bodyStr), ...headers } },
+      {
+        hostname, path, method: 'POST', timeout: 20000,
+        headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(bodyStr), ...headers },
+      },
       res => {
         let raw = '';
         res.on('data', c => { raw += c; });
@@ -42,7 +44,6 @@ function httpsPost(hostname, path, headers, body) {
   });
 }
 
-// ── Built-in HTTPS GET (photo proxy) ─────────────────────────────────────────
 function httpsGet(urlStr) {
   return new Promise((resolve, reject) => {
     const req = https.get(urlStr, res => {
@@ -57,8 +58,6 @@ function httpsGet(urlStr) {
 }
 
 // ── GET /api/google-places/test ───────────────────────────────────────────────
-// Open in browser: https://your-railway-url.railway.app/api/google-places/test
-// Tells you EXACTLY what is wrong with your API key setup.
 router.get('/test', async (req, res) => {
   if (!PLACES_API_KEY) {
     return res.json({
@@ -71,14 +70,14 @@ router.get('/test', async (req, res) => {
     const result = await httpsPost(
       'places.googleapis.com', '/v1/places:searchText',
       { 'X-Goog-Api-Key': PLACES_API_KEY, 'X-Goog-FieldMask': 'places.id,places.displayName' },
-      { textQuery: 'Cardiologist in Mumbai', maxResultCount: 1 },
+      { textQuery: 'Cardiologist doctor', maxResultCount: 1 },
     );
     if (result.status === 200) {
       return res.json({ ok: true, message: 'Google Places API working!', sample: result.data?.places?.[0]?.displayName?.text || '(no results)' });
     }
-    let fix = 'Check detail field for the exact Google error.';
-    if (result.status === 403) fix = 'Places API (New) is NOT enabled. Go to Google Cloud Console → APIs & Services → Library → search "Places API (New)" → Enable it.';
-    if (result.status === 401) fix = 'API key is invalid. Copy it again from Google Cloud Console → Credentials.';
+    let fix = 'See detail field.';
+    if (result.status === 403) fix = 'Enable "Places API (New)" in Google Cloud Console → APIs & Services → Library.';
+    if (result.status === 401) fix = 'API key is invalid. Re-copy from Google Cloud Console → Credentials.';
     if (result.status === 429) fix = 'Quota exceeded. Check Google Cloud billing.';
     return res.json({ ok: false, googleStatus: result.status, detail: result.raw, fix });
   } catch (err) {
@@ -94,53 +93,70 @@ router.post('/doctors', async (req, res) => {
     return res.status(400).json({ success: false, message: 'specialty is required' });
   }
   if (!PLACES_API_KEY) {
-    console.error('[GooglePlaces] GOOGLE_PLACES_API_KEY not set in Railway variables');
+    console.error('[GooglePlaces] GOOGLE_PLACES_API_KEY not set');
     return res.status(503).json({ success: false, message: 'Google Places API key not configured on server' });
   }
 
-  const locationPart = location ? ` in ${location}` : ' clinic India';
-  const textQuery    = `${specialty}${locationPart}`;
+  // ── KEY FIX: query building ───────────────────────────────────────────────
+  // When coords are provided: omit city from query text so locationBias drives results.
+  // When only city name is provided: include it in query text.
+  const hasCoords = lat && lng;
+  let textQuery;
+
+  if (hasCoords) {
+    // Coords available — let the locationBias circle do geographic filtering.
+    // Generic suffix keeps it relevant without locking to a city name.
+    textQuery = `${specialty} doctor`;
+  } else if (location) {
+    // No coords — embed city in query for Google to know where to search.
+    textQuery = `${specialty} in ${location}`;
+  } else {
+    // Neither — broadest fallback
+    textQuery = `${specialty} doctor India`;
+  }
 
   const requestBody = {
     textQuery,
     maxResultCount: 10,
     languageCode:   'en',
-    // minRating intentionally removed — it silently returns 0 results for rare specialties
   };
 
-  if (lat && lng) {
+  // Add locationBias only when coords are available
+  if (hasCoords) {
     requestBody.locationBias = {
       circle: {
         center: { latitude: parseFloat(lat), longitude: parseFloat(lng) },
-        radius: 15000,
+        radius: 15000, // 15 km radius
       },
     };
   }
 
+  const fieldMask = [
+    'places.id', 'places.displayName', 'places.formattedAddress',
+    'places.rating', 'places.userRatingCount', 'places.googleMapsUri',
+    'places.regularOpeningHours', 'places.internationalPhoneNumber', 'places.photos',
+  ].join(',');
+
   try {
-    console.log(`[GooglePlaces] Query: "${textQuery}" | coords: ${lat || 'none'}`);
+    console.log(`[GooglePlaces] query="${textQuery}" | coords=${hasCoords ? `${lat},${lng}` : 'none'} | city=${location || 'none'}`);
 
     const result = await httpsPost(
       'places.googleapis.com', '/v1/places:searchText',
-      {
-        'X-Goog-Api-Key':   PLACES_API_KEY,
-        'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.googleMapsUri,places.regularOpeningHours,places.internationalPhoneNumber,places.photos',
-      },
+      { 'X-Goog-Api-Key': PLACES_API_KEY, 'X-Goog-FieldMask': fieldMask },
       requestBody,
     );
 
     if (result.status !== 200) {
-      // Log the FULL Google error so it appears in Railway logs
       console.error(`[GooglePlaces] Google API ${result.status}:`, result.raw);
       let msg = 'Google Places API error';
-      if (result.status === 403) msg = 'Places API (New) not enabled in Google Cloud Console. Visit /api/google-places/test for fix steps.';
+      if (result.status === 403) msg = 'Places API (New) not enabled. Visit /api/google-places/test for steps.';
       if (result.status === 401) msg = 'Invalid Google API key.';
       if (result.status === 429) msg = 'Google API quota exceeded.';
       return res.status(502).json({ success: false, message: msg, googleStatus: result.status });
     }
 
     const places = result.data?.places || [];
-    console.log(`[GooglePlaces] Got ${places.length} results`);
+    console.log(`[GooglePlaces] ${places.length} results for "${textQuery}"`);
 
     const sorted = places
       .filter(p => p.rating)
