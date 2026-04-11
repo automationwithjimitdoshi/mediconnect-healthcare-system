@@ -172,27 +172,29 @@ export default function PatientFilesPage() {
   }
 
   // ── Download ─────────────────────────────────────────────────────────────────
+  // Uses the static /uploads URL that Express already serves.
+  // fetch→blob→anchor.download forces Save dialog — never opens in a new tab.
   async function handleDownload(file) {
     setDownloading(file.id);
     try {
-      // Use authenticated API endpoint — backend reads file from disk using storageKey
-      // fetch+blob+anchor.download forces Save dialog (never opens in tab)
-      const r = await fetch(`${API}/files/${file.id}/download`, {
-        headers: { Authorization: `Bearer ${tok()}` },
-      });
-      if (!r.ok) {
-        const err = await r.json().catch(() => ({}));
-        throw new Error(err.message || `HTTP ${r.status}`);
-      }
+      const rawUrl = file.storageUrl || file.fileUrl || '';
+      if (!rawUrl) throw new Error('No file URL stored for this file');
+
+      // BASE is derived from API by stripping /api — same host, correct port
+      const staticUrl = rawUrl.startsWith('http') ? rawUrl : `${BASE}${rawUrl}`;
+
+      const r = await fetch(staticUrl);
+      if (!r.ok) throw new Error(`Server returned ${r.status} for ${staticUrl}`);
+
       const blob = await r.blob();
-      const url  = URL.createObjectURL(blob);
-      const a    = document.createElement('a');
-      a.href     = url;
-      a.download = file.fileName || 'file';
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = file.fileName || 'download';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
       showToast(`✅ ${file.fileName} downloaded`);
     } catch (err) {
       showToast('Download failed: ' + err.message, 'err');
