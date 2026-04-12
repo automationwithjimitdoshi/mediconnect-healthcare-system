@@ -15,9 +15,6 @@ const fs      = require('fs');
 
 const app    = express();
 const server = http.createServer(app);
-const googlePlacesRoute = require('./routes/googlePlaces');
-app.use('/api/google-places', googlePlacesRoute);
-
 // ── Socket.io ─────────────────────────────────────────────────────────────────
 let io;
 try {
@@ -57,27 +54,21 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // ── Static uploads ────────────────────────────────────────────────────────────
+// backend/src/ → ../../ → mediconnect app/uploads/
 const uploadsDir = [
-  path.join(__dirname, '..', '..', 'uploads'),
-  path.join(__dirname, '..', 'uploads'),
-  path.join(__dirname, 'uploads'),
-].find(d => fs.existsSync(d)) || path.join(__dirname, '..', 'uploads');
+  path.join(__dirname, '..', '..', 'uploads'),  // mediconnect app/uploads/ ← primary
+  path.join(__dirname, '..', 'uploads'),          // backend/uploads/         ← fallback
+  path.join(__dirname, 'uploads'),                // backend/src/uploads/     ← last resort
+].find(d => fs.existsSync(d)) || path.join(__dirname, '..', '..', 'uploads');
 
-// Always create dirs — ensures they exist on Railway too
-['', 'pdfs', 'images', 'documents', 'dicom'].forEach(sub =>
-  fs.mkdirSync(sub ? path.join(uploadsDir, sub) : uploadsDir, { recursive: true })
+['pdfs', 'images', 'documents', 'dicom'].forEach(sub =>
+  fs.mkdirSync(path.join(uploadsDir, sub), { recursive: true })
 );
-app.use('/uploads', express.static(uploadsDir, { fallthrough: false }));
-
-// Explicit handler so /uploads 404s return JSON not HTML
-app.use('/uploads', (err, req, res, next) => {
-  if (err && err.status === 404) return res.status(404).json({ error: 'File not found: ' + req.path });
-  next(err);
-});
-
-console.log('✓ Uploads dir:', uploadsDir);
+app.use('/uploads', express.static(uploadsDir));
+console.log('✓ Uploads:', uploadsDir);
 
 // ── Routes ────────────────────────────────────────────────────────────────────
+app.use('/api/google-places', require('./routes/googlePlaces'));
 app.use('/api/auth',         require('./routes/auth'));
 app.use('/api/doctors',      require('./routes/doctors'));
 app.use('/api/patients',     require('./routes/patients'));
