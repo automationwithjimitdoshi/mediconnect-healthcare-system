@@ -73,55 +73,69 @@ router.post('/patient/analyze', requireAuth, function (req, res) {
   if (!['PATIENT','DOCTOR'].includes(req.user.role)) return res.status(403).json({ success: false, message: 'Login required' });
   let multer;
   try { multer = require('multer'); } catch { return res.status(500).json({ success: false, message: 'npm install multer' }); }
-  const UPLOAD_DIR = path.join(__dirname, '..', '..', 'uploads');
-  ['images','pdfs','documents'].forEach(sub => { const d = path.join(UPLOAD_DIR, sub); if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true }); });
+
+  // memoryStorage: file goes to buffer, then we write a temp file for AI + upload to Supabase
   const upload = multer({
-    storage: multer.diskStorage({
-      destination(req, file, cb) { let s='documents'; if(file.mimetype.startsWith('image/'))s='images'; if(file.mimetype==='application/pdf')s='pdfs'; cb(null,path.join(UPLOAD_DIR,s)); },
-      filename(req, file, cb) { cb(null, crypto.randomBytes(16).toString('hex')+path.extname(file.originalname)); },
-    }),
+    storage: multer.memoryStorage(),
     limits: { fileSize: 20*1024*1024 },
     fileFilter(req,file,cb){const ok=['image/jpeg','image/png','image/webp','application/pdf','application/msword','application/vnd.openxmlformats-officedocument.wordprocessingml.document','text/plain'].includes(file.mimetype);cb(ok?null:new Error('Unsupported file type'),ok);},
   });
-  upload.single('file')(req, res, async function(err){
-    if(err)return res.status(400).json({success:false,message:err.message});
-    if(!req.file)return res.status(400).json({success:false,message:'No file uploaded'});
-    const file=req.file,lang=['en','hi','gu'].includes(req.body.lang)?req.body.lang:'en';
-    const category=file.mimetype.startsWith('image/')?'IMAGE':file.mimetype==='application/pdf'?'PDF':'DOCUMENT';
-    try{
-      const userId=getUserId(req);
-      const isDoctor = req.user.role === 'DOCTOR';
 
-      // For doctors: no patient record needed — analyze without saving to DB
+  upload.single('file')(req, res, async function(err){
+    if(err) return res.status(400).json({success:false,message:err.message});
+    if(!req.file) return res.status(400).json({success:false,message:'No file uploaded'});
+
+    const file     = req.file;
+    const lang     = ['en','hi','gu'].includes(req.body.lang) ? req.body.lang : 'en';
+    const category = file.mimetype.startsWith('image/') ? 'IMAGE' : file.mimetype==='application/pdf' ? 'PDF' : 'DOCUMENT';
+
+    // Write buffer to OS temp file so aiService (pdf-parse) can read it from disk
+    const os      = require('os');
+    const tmpPath = path.join(os.tmpdir(), crypto.randomBytes(16).toString('hex') + path.extname(file.originalname));
+    fs.writeFileSync(tmpPath, file.buffer);
+    const cleanup = () => { try { fs.unlinkSync(tmpPath); } catch {} };
+
+    try {
+      const userId   = getUserId(req);
+      const isDoctor = req.user.role === 'DOCTOR';
+      const storage  = require('../services/storage');
+
+      // Doctors: analyze only, no DB save
       if(isDoctor){
         const{analyzeForPatient}=getAI();
-        let analysis;
         try{
-          analysis=await analyzeForPatient({filePath:file.path,category,fileName:file.originalname,patientAge:null,patientGender:null,lang});
-        }catch(e){
-          fs.unlink(file.path,()=>{});
-          return res.status(500).json({success:false,message:'Analysis failed: '+e.message});
-        }
-        fs.unlink(file.path,()=>{}); // clean up temp file
-        return res.status(200).json({success:true,fileId:null,fileName:file.originalname,analysis});
+          const analysis=await analyzeForPatient({filePath:tmpPath,category,fileName:file.originalname,patientAge:null,patientGender:null,lang});
+          cleanup();
+          return res.status(200).json({success:true,fileId:null,fileName:file.originalname,analysis});
+        }catch(e){ cleanup(); return res.status(500).json({success:false,message:'Analysis failed: '+e.message}); }
       }
 
       const patient=await prisma.patient.findUnique({where:{userId},select:{id:true,firstName:true,dateOfBirth:true,gender:true}});
-      if(!patient){fs.unlink(file.path,()=>{});return res.status(404).json({success:false,message:'Patient not found'});}
-      const sub=category==='IMAGE'?'images':category==='PDF'?'pdfs':'documents';
-      const fr=await prisma.medicalFile.create({data:{patientId:patient.id,uploadedBy:userId,fileName:file.originalname,fileType:file.mimetype,mimeType:file.mimetype,fileSize:file.size,storageKey:file.path,storageUrl:`/uploads/${sub}/${file.filename}`,category,isProcessed:false}});
-      // ALWAYS run analyzeForPatient — it falls back to rule-based offline parser automatically
+      if(!patient){ cleanup(); return res.status(404).json({success:false,message:'Patient not found'}); }
+
+      // Upload to Supabase Storage (persists across redeploys) or local disk in dev
+      const {storageKey, storageUrl} = await storage.uploadFile(file.buffer, {
+        originalName: file.originalname, mimeType: file.mimetype, category,
+      });
+
+      const fr=await prisma.medicalFile.create({data:{
+        patientId:patient.id, uploadedBy:userId, fileName:file.originalname,
+        fileType:file.mimetype, mimeType:file.mimetype, fileSize:file.size,
+        storageKey, storageUrl, category, isProcessed:false,
+      }});
+
       let analysis;
       try{
         const{analyzeForPatient}=getAI();
-        analysis=await analyzeForPatient({filePath:file.path,category,fileName:file.originalname,patientAge:patient.dateOfBirth?getAge(patient.dateOfBirth):null,patientGender:patient.gender,lang});
+        analysis=await analyzeForPatient({filePath:tmpPath,category,fileName:file.originalname,patientAge:patient.dateOfBirth?getAge(patient.dateOfBirth):null,patientGender:patient.gender,lang});
       }catch(e){
-        console.error('[analyze] analyzeForPatient error:',e.message);
         analysis={healthScore:null,aiAvailable:false,source:'error',message:e.message,parameters:[],findings:[{severity:'ok',icon:'⚠️',title:'Analysis error',detail:e.message}],suggestions:[],doctors:[]};
       }
-      if(analysis&&!analysis.notMedical)await prisma.medicalFile.update({where:{id:fr.id},data:{patientAnalysis:analysis,patientAnalyzedAt:new Date()}}).catch(()=>{});
+
+      cleanup(); // temp file no longer needed — file is in Supabase
+      if(analysis&&!analysis.notMedical) await prisma.medicalFile.update({where:{id:fr.id},data:{patientAnalysis:analysis,patientAnalyzedAt:new Date()}}).catch(()=>{});
       return res.status(200).json({success:true,fileId:fr.id,fileName:file.originalname,analysis});
-    }catch(error){fs.unlink(file.path,()=>{});return res.status(500).json({success:false,message:'Analysis failed'});}
+    }catch(error){ cleanup(); return res.status(500).json({success:false,message:'Upload/analysis failed: '+error.message}); }
   });
 });
 
@@ -406,23 +420,32 @@ router.get('/shared/:shareToken', requireAuth, async (req, res) => {
 });
 
 
-// GET /api/reports/patient/download/:fileId  — no auth, streams file from disk
+// GET /api/reports/patient/download/:fileId  — no auth required
+// For Supabase files: redirects to permanent public URL (no disk needed)
+// For local dev files: streams from disk
 router.get('/patient/download/:fileId', async (req, res) => {
   try {
-    const file = await prisma.medicalFile.findUnique({ where: { id: req.params.fileId } });
+    const file    = await prisma.medicalFile.findUnique({ where: { id: req.params.fileId } });
     if (!file) return res.status(404).json({ error: 'File not found in database' });
 
-    // Build candidate paths from all possible stored locations
+    const storage = require('../services/storage');
+    const pubUrl  = storage.getPublicUrl(file.storageKey, file.storageUrl);
+
+    // Supabase: redirect browser directly to the permanent public URL
+    if (pubUrl && pubUrl.startsWith('http')) {
+      return res.redirect(302, pubUrl);
+    }
+
+    // Local dev: stream from disk
     const candidates = [
       file.storageKey,
       file.filePath,
       file.storageUrl ? path.join(__dirname, '..', '..', file.storageUrl.replace(/^\//, '')) : null,
       file.storageUrl ? path.join(__dirname, '..', file.storageUrl.replace(/^\//, ''))       : null,
-      file.storageUrl ? path.join(__dirname, file.storageUrl.replace(/^\//, ''))             : null,
     ].filter(Boolean);
 
     const diskPath = candidates.find(p => { try { return fs.existsSync(p); } catch { return false; } });
-    if (!diskPath) return res.status(404).json({ error: 'File not on disk', candidates });
+    if (!diskPath) return res.status(404).json({ error: 'File not found. Files uploaded before the last server restart cannot be downloaded. Please re-upload.' });
 
     res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.fileName || path.basename(diskPath))}"`);
     res.setHeader('Content-Type', file.mimeType || file.fileType || 'application/octet-stream');
