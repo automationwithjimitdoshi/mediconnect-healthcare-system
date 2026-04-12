@@ -403,33 +403,14 @@ function requireAuthFlex(req, res, next) {
 }
 
 // ── GET /api/files/my ─────────────────────────────────────────────────────────
-// IMPORTANT: must be defined BEFORE /:fileId routes
-// router.get('/my', requireAuth, async (req, res) => {
-//   try {
-//     const userId  = req.user.id || req.user.userId;
-//     const patient = await prisma.patient.findUnique({ where: { userId }, select: { id: true } });
-//     if (!patient) return res.json({ success: true, data: [] });
-
-//     const files = await prisma.medicalFile.findMany({
-//       where:   { patientId: patient.id },
-//       orderBy: { createdAt: 'desc' },
-//       take:    100,
-//     });
-//     return res.json({ success: true, data: files });
-//   } catch (err) {
-//     return res.status(500).json({ success: false, message: err.message });
-//   }
-// });
-
+// Must come before /:fileId so "my" isn't treated as an ID
 router.get('/my', requireAuth, async (req, res) => {
   try {
     const userId  = req.user.id || req.user.userId;
     const patient = await prisma.patient.findUnique({ where: { userId }, select: { id: true } });
     if (!patient) return res.json({ success: true, data: [] });
     const files = await prisma.medicalFile.findMany({
-      where:   { patientId: patient.id },
-      orderBy: { createdAt: 'desc' },
-      take:    100,
+      where: { patientId: patient.id }, orderBy: { createdAt: 'desc' }, take: 100,
     });
     return res.json({ success: true, data: files });
   } catch (err) {
@@ -438,98 +419,53 @@ router.get('/my', requireAuth, async (req, res) => {
 });
 
 // ── GET /api/files/:id/download ───────────────────────────────────────────────
-// Reads file from disk using storageKey, streams with Content-Disposition: attachment
-// Called by frontend with Authorization header → fetch+blob → Save dialog
-router.get('/:fileId/download', requireAuth, async (req, res) => {
+// NO AUTH REQUIRED — simplest possible download, just like a static file.
+// Reads the file using storageKey (absolute disk path saved at upload time).
+router.get('/:fileId/download', async (req, res) => {
   try {
     const file = await prisma.medicalFile.findUnique({ where: { id: req.params.fileId } });
-    if (!file) return res.status(404).json({ success: false, message: 'File not found' });
+    if (!file) return res.status(404).json({ error: 'File not found in database' });
  
-    const userId  = req.user.id || req.user.userId;
-    const isOwner = file.uploadedBy === userId || file.uploadedById === userId;
-    if (!isOwner && req.user.role !== 'DOCTOR' && req.user.role !== 'ADMIN') {
-      return res.status(403).json({ success: false, message: 'Access denied' });
-    }
+    const nodePath = require('path');
+    const nodeFs   = require('fs');
  
-    const diskPath = resolveDiskPath(file);
+    // storageKey is the absolute path: /app/uploads/pdfs/abc.pdf or similar
+    // storageUrl is the relative URL:  /uploads/pdfs/abc.pdf
+    // Try all possible locations
+    const candidates = [
+      file.storageKey,
+      file.filePath,
+      // storageUrl → absolute path via known upload root locations
+      file.storageUrl ? nodePath.join(__dirname, '..', '..', file.storageUrl) : null,
+      file.storageUrl ? nodePath.join(__dirname, '..', file.storageUrl)       : null,
+      file.storageUrl ? nodePath.join(__dirname, file.storageUrl)             : null,
+    ].filter(Boolean);
+ 
+    const diskPath = candidates.find(p => nodeFs.existsSync(p));
+ 
     if (!diskPath) {
       return res.status(404).json({
-        success: false,
-        message: 'File not on disk. storageKey: ' + (file.storageKey || 'none') + ', storageUrl: ' + (file.storageUrl || 'none'),
+        error: 'File not on disk',
+        tried: candidates,
+        storageKey: file.storageKey,
+        storageUrl: file.storageUrl,
       });
     }
  
-    const fileName = file.fileName || require('path').basename(diskPath);
+    const fileName = file.fileName || nodePath.basename(diskPath);
     const mime     = file.mimeType || file.fileType || 'application/octet-stream';
+    const stat     = nodeFs.statSync(diskPath);
  
     res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fileName)}"`);
     res.setHeader('Content-Type', mime);
-    res.setHeader('Content-Length', require('fs').statSync(diskPath).size);
-    require('fs').createReadStream(diskPath).pipe(res);
+    res.setHeader('Content-Length', stat.size);
+    res.setHeader('Cache-Control', 'no-cache');
  
+    nodeFs.createReadStream(diskPath).pipe(res);
   } catch (err) {
-    return res.status(500).json({ success: false, message: err.message });
+    return res.status(500).json({ error: err.message });
   }
 });
-
-// ── GET /api/files/:fileId/download ──────────────────────────────────────────
-// Forces browser Save dialog by setting Content-Disposition: attachment.
-// Accepts auth token via Authorization header OR ?token= query param.
-router.get('/:fileId/download', requireAuthFlex, async (req, res) => {
-  try {
-    const file = await prisma.medicalFile.findUnique({ where: { id: req.params.fileId } });
-    if (!file) return res.status(404).json({ success: false, message: 'File not found' });
-
-    const userId   = req.user.id || req.user.userId;
-    const isOwner  = file.uploadedBy === userId || file.uploadedById === userId;
-    const isDoctor = req.user.role === 'DOCTOR';
-    if (!isOwner && !isDoctor) {
-      return res.status(403).json({ success: false, message: 'Access denied' });
-    }
-
-    const diskPath = resolveDiskPath(file);
-    if (!diskPath) {
-      return res.status(404).json({ success: false, message: 'File not on disk' });
-    }
-
-    const mime     = file.mimeType || file.fileType || 'application/octet-stream';
-    const fileName = file.fileName || require('path').basename(diskPath);
-
-    // Content-Disposition: attachment forces Save dialog in ALL browsers
-    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fileName)}"`);
-    res.setHeader('Content-Type', mime);
-    res.setHeader('Content-Length', require('fs').statSync(diskPath).size);
-
-    require('fs').createReadStream(diskPath).pipe(res);
-
-  } catch (err) {
-    return res.status(500).json({ success: false, message: err.message });
-  }
-});
-
-// ── DELETE /api/files/:fileId ─────────────────────────────────────────────────
-// router.delete('/:fileId', requireAuth, async (req, res) => {
-//   try {
-//     const file = await prisma.medicalFile.findUnique({ where: { id: req.params.fileId } });
-//     if (!file) return res.status(404).json({ success: false, message: 'File not found' });
-
-//     const userId  = req.user.id || req.user.userId;
-//     const isOwner = file.uploadedBy === userId || file.uploadedById === userId;
-//     if (!isOwner && req.user.role !== 'ADMIN') {
-//       return res.status(403).json({ success: false, message: 'Access denied' });
-//     }
-
-//     const diskPath = resolveDiskPath(file);
-//     if (diskPath) {
-//       try { require('fs').unlinkSync(diskPath); } catch { /* already gone — fine */ }
-//     }
-
-//     await prisma.medicalFile.delete({ where: { id: req.params.fileId } });
-//     return res.json({ success: true, message: 'File deleted' });
-//   } catch (err) {
-//     return res.status(500).json({ success: false, message: err.message });
-//   }
-// });
 
 // ── DELETE /api/files/:id ─────────────────────────────────────────────────────
 router.delete('/:fileId', requireAuth, async (req, res) => {
@@ -543,11 +479,21 @@ router.delete('/:fileId', requireAuth, async (req, res) => {
       return res.status(403).json({ success: false, message: 'Access denied' });
     }
  
-    const diskPath = resolveDiskPath(file);
-    if (diskPath) { try { require('fs').unlinkSync(diskPath); } catch {} }
+    // Delete from disk (best effort)
+    const nodePath = require('path');
+    const nodeFs   = require('fs');
+    const candidates = [
+      file.storageKey,
+      file.filePath,
+      file.storageUrl ? nodePath.join(__dirname, '..', '..', file.storageUrl) : null,
+      file.storageUrl ? nodePath.join(__dirname, '..', file.storageUrl)       : null,
+    ].filter(Boolean);
+    for (const p of candidates) {
+      try { if (nodeFs.existsSync(p)) { nodeFs.unlinkSync(p); break; } } catch {}
+    }
  
     await prisma.medicalFile.delete({ where: { id: req.params.fileId } });
-    return res.json({ success: true, message: 'File deleted' });
+    return res.json({ success: true });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }

@@ -172,17 +172,30 @@ export default function PatientFilesPage() {
     }
   }
 
-  // Simple direct download — browser opens the static URL with download attribute
-  function handleDownload(file) {
-    const url = getStaticUrl(file);
-    if (!url) { showToast('File URL not available', 'err'); return; }
-    // Use anchor with download attribute — forces Save dialog for all file types
-    const a = document.createElement('a');
-    a.href     = url;
-    a.download = file.fileName || 'download';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+  // Download — fetch file from backend stream endpoint, save to device
+  async function handleDownload(file) {
+    setDeleting(file.id + '_dl'); // reuse state just to disable button
+    try {
+      const r = await fetch(`${API}/files/${file.id}/download`);
+      if (!r.ok) {
+        const e = await r.json().catch(() => ({}));
+        throw new Error(e.error || `Server error ${r.status}`);
+      }
+      const blob   = await r.blob();
+      const url    = URL.createObjectURL(blob);
+      const a      = document.createElement('a');
+      a.href       = url;
+      a.download   = file.fileName || 'download';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      showToast('✅ Downloaded');
+    } catch (err) {
+      showToast('Download failed: ' + err.message, 'err');
+    } finally {
+      setDeleting(null);
+    }
   }
 
   async function handleDelete(file) {
@@ -354,13 +367,11 @@ export default function PatientFilesPage() {
                         🔬 Analyze
                       </button>
 
-                      {/* Download — direct anchor, no fetch, no complexity */}
-                      {staticUrl && (
-                        <button onClick={() => handleDownload(file)} disabled={isDeleting}
-                          style={{ padding:'6px 12px', background:SURFACE, color:SEC, border:`1px solid ${BORDER}`, borderRadius:8, fontSize:12, fontWeight:600, cursor:isDeleting?'not-allowed':'pointer' }}>
-                          ↓ Download
-                        </button>
-                      )}
+                      {/* Download */}
+                      <button onClick={() => handleDownload(file)} disabled={isDeleting || deleting===file.id+'_dl'}
+                        style={{ padding:'6px 12px', background:SURFACE, color:SEC, border:`1px solid ${BORDER}`, borderRadius:8, fontSize:12, fontWeight:600, cursor:(isDeleting||deleting===file.id+'_dl')?'not-allowed':'pointer' }}>
+                        {deleting===file.id+'_dl' ? '⏳' : '↓ Download'}
+                      </button>
 
                       {/* Delete */}
                       <button onClick={() => !isDeleting && setConfirmFile(file)} disabled={isDeleting}
