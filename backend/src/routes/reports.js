@@ -345,7 +345,7 @@ router.get('/doctor/patient/:patientId/actions', requireAuth, async(req,res)=>{
  * POST /api/reports/share
  * Generates a shareable link for a report (72-hour expiry).
  */
-router.post('/share', authenticateToken, async (req, res) => {
+router.post('/share', requireAuth, async (req, res) => {
   try {
     const { reportId } = req.body;
 
@@ -433,7 +433,7 @@ router.get('/shared/:shareToken/meta', async (req, res) => {
  * GET /api/reports/shared/:shareToken
  * Returns full report data for authenticated users.
  */
-router.get('/shared/:shareToken', authenticateToken, async (req, res) => {
+router.get('/shared/:shareToken', requireAuth, async (req, res) => {
   try {
     const record = await prisma.shareToken.findUnique({
       where: { token: req.params.shareToken },
@@ -451,38 +451,26 @@ router.get('/shared/:shareToken', authenticateToken, async (req, res) => {
 });
 
 
-// ── GET /api/reports/patient/download/:fileId ─────────────────────────────────
-// No auth required — simplest possible file download.
-// Reads file from disk using storageKey (absolute path saved at upload time).
+// GET /api/reports/patient/download/:fileId
+// No auth — streams file directly from disk using storageKey saved at upload time
 router.get('/patient/download/:fileId', async (req, res) => {
   const nodeFs   = require('fs');
   const nodePath = require('path');
   try {
     const file = await prisma.medicalFile.findUnique({ where: { id: req.params.fileId } });
     if (!file) return res.status(404).json({ error: 'File not found' });
-
-    // Find the file on disk — try all stored path references
     const candidates = [
       file.storageKey,
       file.filePath,
       file.storageUrl ? nodePath.join(__dirname, '..', '..', file.storageUrl.replace(/^\//, '')) : null,
       file.storageUrl ? nodePath.join(__dirname, '..', file.storageUrl.replace(/^\//, ''))       : null,
-      file.storageUrl ? nodePath.join(__dirname, file.storageUrl.replace(/^\//, ''))             : null,
     ].filter(Boolean);
-
     const diskPath = candidates.find(p => { try { return nodeFs.existsSync(p); } catch { return false; } });
-
-    if (!diskPath) {
-      return res.status(404).json({ error: 'File not on disk', candidates });
-    }
-
+    if (!diskPath) return res.status(404).json({ error: 'File not on disk' });
     const fileName = file.fileName || nodePath.basename(diskPath);
-    const mime     = file.mimeType || file.fileType || 'application/octet-stream';
-
     res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fileName)}"`);
-    res.setHeader('Content-Type', mime);
+    res.setHeader('Content-Type', file.mimeType || file.fileType || 'application/octet-stream');
     res.setHeader('Content-Length', nodeFs.statSync(diskPath).size);
-    res.setHeader('Access-Control-Allow-Origin', '*');
     nodeFs.createReadStream(diskPath).pipe(res);
   } catch (err) {
     res.status(500).json({ error: err.message });

@@ -172,14 +172,14 @@ export default function PatientFilesPage() {
     }
   }
 
-  // Download — streams file from backend using reports route (no auth, no conflicts)
+  // Download — no auth required, streams directly from backend disk
   async function handleDownload(file) {
     setDeleting(file.id + '_dl');
     try {
       const r = await fetch(`${API}/reports/patient/download/${file.id}`);
       if (!r.ok) {
         const e = await r.json().catch(() => ({}));
-        throw new Error(e.error || `Server error ${r.status}`);
+        throw new Error(e.error || `HTTP ${r.status}`);
       }
       const blob = await r.blob();
       const url  = URL.createObjectURL(blob);
