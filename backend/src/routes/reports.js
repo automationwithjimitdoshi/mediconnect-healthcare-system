@@ -341,137 +341,93 @@ router.get('/doctor/patient/:patientId/actions', requireAuth, async(req,res)=>{
   }catch(err){return res.status(500).json({success:false,message:'Failed',detail:err.message});}
 });
 
-/**
- * POST /api/reports/share
- * Generates a shareable link for a report (72-hour expiry).
- */
+// POST /api/reports/share
+// Signs a JWT with the fileId — no extra DB table needed.
 router.post('/share', requireAuth, async (req, res) => {
   try {
     const { reportId } = req.body;
-
-    if (!reportId) {
-      return res.status(400).json({ success: false, message: 'reportId is required' });
-    }
-
-    // Verify the report belongs to the requesting user
-    const report = await prisma.report.findFirst({
-      where: {
-        id: reportId,
-        OR: [
-          { patientId: req.user.id },
-          { doctorId:  req.user.id },
-        ],
-      },
-    });
-
-    if (!report) {
-      return res.status(404).json({ success: false, message: 'Report not found' });
-    }
-
-    // Generate a secure random token
-    const crypto    = require('crypto');
-    const shareToken = crypto.randomBytes(32).toString('hex');
-    const expiresAt  = new Date(Date.now() + 72 * 60 * 60 * 1000); // 72 hours
-
-    // Save share token to DB (add ShareToken model to your Prisma schema if not present)
-    await prisma.shareToken.create({
-      data: {
-        token:    shareToken,
-        reportId: report.id,
-        expiresAt,
-        createdBy: req.user.id,
-      },
-    });
-
-    const shareUrl = `${process.env.FRONTEND_URL}/report/view/${shareToken}`;
-
-    return res.json({
-      success:    true,
-      shareUrl,
-      shareToken,
-      expiresAt,
-    });
-
+    if (!reportId) return res.status(400).json({ success: false, message: 'reportId is required' });
+    const file = await prisma.medicalFile.findUnique({ where: { id: reportId } });
+    if (!file) return res.status(404).json({ success: false, message: 'Report not found' });
+    const shareToken = jwt.sign({ fileId: file.id }, process.env.JWT_SECRET, { expiresIn: '72h' });
+    const FRONTEND   = process.env.FRONTEND_URL || 'https://mediconnect-healthcare-system.vercel.app';
+    const shareUrl   = `${FRONTEND}/report/view/${shareToken}`;
+    const expiresAt  = new Date(Date.now() + 72 * 60 * 60 * 1000);
+    return res.json({ success: true, shareUrl, shareToken, expiresAt });
   } catch (err) {
-    console.error('[reports/share] error:', err.message);
-    return res.status(500).json({ success: false, message: 'Failed to generate share link', detail: err.message });
+    return res.status(500).json({ success: false, message: err.message });
   }
 });
 
-/**
- * GET /api/reports/shared/:shareToken/meta
- * Returns minimal report info for Open Graph preview (page.js uses this).
- * Does NOT require auth — WhatsApp bot calls this with no token.
- */
+// GET /api/reports/shared/:shareToken/meta  — public, no auth (WhatsApp/OG bots)
 router.get('/shared/:shareToken/meta', async (req, res) => {
   try {
-    const record = await prisma.shareToken.findUnique({
-      where: { token: req.params.shareToken },
-      include: {
-        report: {
-          include: { patient: { select: { firstName: true, lastName: true } } },
-        },
-      },
+    const decoded = jwt.verify(req.params.shareToken, process.env.JWT_SECRET);
+    const file    = await prisma.medicalFile.findUnique({
+      where:   { id: decoded.fileId },
+      include: { patient: { select: { firstName: true, lastName: true } } },
     });
-
-    if (!record || record.expiresAt < new Date()) {
-      return res.status(404).json({ success: false, message: 'Link expired or not found' });
-    }
-
-    return res.json({
-      reportType:  record.report.reportType || record.report.type || 'Medical Report',
-      patientName: record.report.patient
-        ? `${record.report.patient.firstName} ${record.report.patient.lastName}`.trim()
-        : null,
-    });
-  } catch (err) {
-    return res.status(500).json({ success: false, message: err.message });
+    if (!file) return res.status(404).json({ success: false, message: 'Not found' });
+    let reportType = 'Medical Report';
+    try {
+      const a = typeof file.patientAnalysis === 'string' ? JSON.parse(file.patientAnalysis) : file.patientAnalysis;
+      if (a?.reportType) reportType = a.reportType;
+    } catch {}
+    const patientName = file.patient ? `${file.patient.firstName||''} ${file.patient.lastName||''}`.trim() : null;
+    return res.json({ reportType, patientName });
+  } catch {
+    return res.status(404).json({ success: false, message: 'Link expired or invalid' });
   }
 });
 
-/**
- * GET /api/reports/shared/:shareToken
- * Returns full report data for authenticated users.
- */
+// GET /api/reports/shared/:shareToken  — requires login
 router.get('/shared/:shareToken', requireAuth, async (req, res) => {
   try {
-    const record = await prisma.shareToken.findUnique({
-      where: { token: req.params.shareToken },
-      include: { report: true },
+    const decoded = jwt.verify(req.params.shareToken, process.env.JWT_SECRET);
+    const file    = await prisma.medicalFile.findUnique({
+      where:   { id: decoded.fileId },
+      include: { patient: { select: { firstName: true, lastName: true } } },
     });
-
-    if (!record || record.expiresAt < new Date()) {
-      return res.status(410).json({ success: false, message: 'This link has expired' });
-    }
-
-    return res.json({ success: true, data: record.report });
+    if (!file) return res.status(404).json({ success: false, message: 'Report not found' });
+    let analysis = null;
+    try { analysis = typeof file.patientAnalysis === 'string' ? JSON.parse(file.patientAnalysis) : file.patientAnalysis; } catch {}
+    const patientName = file.patient ? `${file.patient.firstName||''} ${file.patient.lastName||''}`.trim() : 'Patient';
+    return res.json({ success: true, data: {
+      id: file.id, reportType: analysis?.reportType || 'Medical Report', patientName,
+      healthScore: analysis?.healthScore || null, scoreLabel: analysis?.scoreLabel || '',
+      parameters: analysis?.parameters || [], findings: analysis?.findings || [],
+      suggestions: analysis?.suggestions || [], doctors: analysis?.doctors || [],
+      disclaimer: analysis?.disclaimer || '', fileName: file.fileName, createdAt: file.createdAt,
+    }});
   } catch (err) {
-    return res.status(500).json({ success: false, message: err.message });
+    if (err.name === 'TokenExpiredError') return res.status(410).json({ success: false, message: 'This share link has expired' });
+    return res.status(400).json({ success: false, message: 'Invalid share link' });
   }
 });
 
 
-// GET /api/reports/patient/download/:fileId
-// No auth — streams file directly from disk using storageKey saved at upload time
+// GET /api/reports/patient/download/:fileId  — no auth, streams file from disk
 router.get('/patient/download/:fileId', async (req, res) => {
-  const nodeFs   = require('fs');
-  const nodePath = require('path');
   try {
     const file = await prisma.medicalFile.findUnique({ where: { id: req.params.fileId } });
-    if (!file) return res.status(404).json({ error: 'File not found' });
+    if (!file) return res.status(404).json({ error: 'File not found in database' });
+
+    // Build candidate paths from all possible stored locations
     const candidates = [
       file.storageKey,
       file.filePath,
-      file.storageUrl ? nodePath.join(__dirname, '..', '..', file.storageUrl.replace(/^\//, '')) : null,
-      file.storageUrl ? nodePath.join(__dirname, '..', file.storageUrl.replace(/^\//, ''))       : null,
+      file.storageUrl ? path.join(__dirname, '..', '..', file.storageUrl.replace(/^\//, '')) : null,
+      file.storageUrl ? path.join(__dirname, '..', file.storageUrl.replace(/^\//, ''))       : null,
+      file.storageUrl ? path.join(__dirname, file.storageUrl.replace(/^\//, ''))             : null,
     ].filter(Boolean);
-    const diskPath = candidates.find(p => { try { return nodeFs.existsSync(p); } catch { return false; } });
-    if (!diskPath) return res.status(404).json({ error: 'File not on disk' });
-    const fileName = file.fileName || nodePath.basename(diskPath);
-    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fileName)}"`);
+
+    const diskPath = candidates.find(p => { try { return fs.existsSync(p); } catch { return false; } });
+    if (!diskPath) return res.status(404).json({ error: 'File not on disk', candidates });
+
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.fileName || path.basename(diskPath))}"`);
     res.setHeader('Content-Type', file.mimeType || file.fileType || 'application/octet-stream');
-    res.setHeader('Content-Length', nodeFs.statSync(diskPath).size);
-    nodeFs.createReadStream(diskPath).pipe(res);
+    res.setHeader('Content-Length', fs.statSync(diskPath).size);
+    fs.createReadStream(diskPath).pipe(res);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
