@@ -172,20 +172,20 @@ export default function PatientFilesPage() {
     }
   }
 
-  // Download — fetch file from backend stream endpoint, save to device
+  // Download — streams file from backend using reports route (no auth, no conflicts)
   async function handleDownload(file) {
-    setDeleting(file.id + '_dl'); // reuse state just to disable button
+    setDeleting(file.id + '_dl');
     try {
-      const r = await fetch(`${API}/files/${file.id}/download`);
+      const r = await fetch(`${API}/reports/patient/download/${file.id}`);
       if (!r.ok) {
         const e = await r.json().catch(() => ({}));
         throw new Error(e.error || `Server error ${r.status}`);
       }
-      const blob   = await r.blob();
-      const url    = URL.createObjectURL(blob);
-      const a      = document.createElement('a');
-      a.href       = url;
-      a.download   = file.fileName || 'download';
+      const blob = await r.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = file.fileName || 'download';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
