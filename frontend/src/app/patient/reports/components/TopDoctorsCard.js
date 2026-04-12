@@ -1,14 +1,4 @@
 'use client';
-/**
- * src/app/patient/reports/components/TopDoctorsCard.js
- *
- * Simple and reliable:
- * - Shows a city input box
- * - User types their city and hits Enter or Search
- * - Calls backend with "Nephrologist in Pune" → accurate Google results
- * - No GPS, no reverse-geocoding, no location bias complexity
- * - Remembers last used city in localStorage
- */
 
 import { useState, useEffect, useRef } from 'react';
 
@@ -20,46 +10,82 @@ const NAVY  = '#0c1a2e', BLUE = '#1565c0', BLUE_P = '#e3f0ff',
       RED_P = '#fdecea', RED = '#c62828';
 
 const CITY_KEY = 'mc_last_city';
+function savedCity() { try { return localStorage.getItem(CITY_KEY) || ''; } catch { return ''; } }
+function saveCity(c) { try { localStorage.setItem(CITY_KEY, c); } catch {} }
 
-function savedCity() {
-  try { return localStorage.getItem(CITY_KEY) || ''; } catch { return ''; }
-}
-function saveCity(c) {
-  try { localStorage.setItem(CITY_KEY, c); } catch {}
+// ── Defined OUTSIDE the component so React never remounts them on re-render ──
+function Wrap({ specialty, children }) {
+  return (
+    <div style={{ background: 'linear-gradient(135deg,#1565c0 0%,#00796b 100%)', borderRadius: 14, padding: '14px 18px', marginTop: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+        <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>🏥</div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: 'white' }}>Top {specialty}s Near You</div>
+          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.65)' }}>⭐ Rated on Google</div>
+        </div>
+        <span style={{ fontSize: 11, background: 'rgba(255,255,255,0.15)', color: 'white', padding: '3px 10px', borderRadius: 99 }}>via Google</span>
+      </div>
+      <div style={{ background: 'rgba(255,255,255,0.97)', borderRadius: 10 }}>{children}</div>
+    </div>
+  );
 }
 
+function SearchBar({ city, setCity, onSearch, loading, borderTop, inputRef }) {
+  return (
+    <div style={{ padding: '12px 14px', borderTop: borderTop ? `1px solid ${BORDER}` : 'none' }}>
+      {!borderTop && (
+        <div style={{ fontSize: 12.5, color: SEC, marginBottom: 8, fontWeight: 600 }}>
+          📍 Enter your city to find nearby specialists
+        </div>
+      )}
+      <div style={{ display: 'flex', gap: 8 }}>
+        <input
+          ref={inputRef}
+          value={city}
+          onChange={e => setCity(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && onSearch()}
+          placeholder="City name — e.g. Pune, Surat, Delhi"
+          style={{ flex: 1, padding: '8px 11px', border: `1.5px solid ${BORDER}`, borderRadius: 8, fontSize: 13, outline: 'none', fontFamily: 'DM Sans, sans-serif', color: NAVY }}
+        />
+        <button
+          onClick={onSearch}
+          disabled={loading || !city.trim()}
+          style={{ padding: '8px 16px', background: (loading || !city.trim()) ? '#93c5fd' : BLUE, color: 'white', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: (loading || !city.trim()) ? 'not-allowed' : 'pointer' }}>
+          {loading ? '…' : '🔍 Search'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
 export default function TopDoctorsCard({ specialty, token, onBook }) {
-  const [city,    setCity]    = useState('');
-  const [doctors, setDoctors] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [city,     setCity]     = useState('');
+  const [doctors,  setDoctors]  = useState([]);
+  const [loading,  setLoading]  = useState(false);
   const [searched, setSearched] = useState(false);
-  const [error,   setError]   = useState('');
-  const inputRef = useRef(null);
+  const [error,    setError]    = useState('');
+  const inputRef  = useRef(null);
+  const didInit   = useRef(false);
 
-  // On first mount only: load saved city and auto-search
-  // Using useRef to ensure this runs exactly once and never interferes with typing
-  const didInit = useRef(false);
   useEffect(() => {
     if (didInit.current || !specialty) return;
     didInit.current = true;
     const last = savedCity();
     if (last) {
       setCity(last);
-      // Delay slightly so state is set before search fires
       setTimeout(() => doSearch(last), 50);
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function doSearch(cityOverride) {
-    const c = (cityOverride ?? city).trim();
+    const c = (cityOverride !== undefined ? cityOverride : city).trim();
     if (!c) { inputRef.current?.focus(); return; }
-
     setLoading(true);
     setError('');
     setDoctors([]);
     setSearched(true);
     saveCity(c);
-
     try {
       const r = await fetch(`${API}/google-places/doctors`, {
         method:  'POST',
@@ -67,7 +93,6 @@ export default function TopDoctorsCard({ specialty, token, onBook }) {
         body:    JSON.stringify({ specialty, location: c }),
       });
       const d = await r.json();
-
       if (!r.ok || !d.success) {
         setError(d.message || `Server error ${r.status}`);
       } else if (!d.doctors?.length) {
@@ -82,54 +107,16 @@ export default function TopDoctorsCard({ specialty, token, onBook }) {
     }
   }
 
-  // Shared gradient wrapper
-  const Wrap = ({ children }) => (
-    <div style={{ background: 'linear-gradient(135deg,#1565c0 0%,#00796b 100%)', borderRadius: 14, padding: '14px 18px', marginTop: 12 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-        <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>🏥</div>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: 'white' }}>Top {specialty}s Near You</div>
-          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.65)' }}>⭐ Rated on Google</div>
-        </div>
-        <span style={{ fontSize: 11, background: 'rgba(255,255,255,0.15)', color: 'white', padding: '3px 10px', borderRadius: 99 }}>via Google</span>
-      </div>
-      <div style={{ background: 'rgba(255,255,255,0.97)', borderRadius: 10 }}>{children}</div>
-    </div>
+  const searchBarProps = { city, setCity, onSearch: doSearch, loading, inputRef };
+
+  if (!searched && !loading) return (
+    <Wrap specialty={specialty}>
+      <SearchBar {...searchBarProps} borderTop={false} />
+    </Wrap>
   );
 
-  // City search bar — shown always at top (before results) or bottom (after results)
-  const SearchBar = ({ borderTop }) => (
-    <div style={{ padding: '12px 14px', borderTop: borderTop ? `1px solid ${BORDER}` : 'none' }}>
-      {!borderTop && (
-        <div style={{ fontSize: 12.5, color: SEC, marginBottom: 8, fontWeight: 600 }}>
-          📍 Enter your city to find nearby specialists
-        </div>
-      )}
-      <div style={{ display: 'flex', gap: 8 }}>
-        <input
-          ref={inputRef}
-          value={city}
-          onChange={e => setCity(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && doSearch()}
-          placeholder="City name — e.g. Pune, Surat, Delhi"
-          style={{ flex: 1, padding: '8px 11px', border: `1.5px solid ${BORDER}`, borderRadius: 8, fontSize: 13, outline: 'none', fontFamily: 'DM Sans, sans-serif', color: NAVY }}
-        />
-        <button
-          onClick={() => doSearch()}
-          disabled={loading || !city.trim()}
-          style={{ padding: '8px 16px', background: (loading || !city.trim()) ? '#93c5fd' : BLUE, color: 'white', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: (loading || !city.trim()) ? 'not-allowed' : 'pointer' }}>
-          {loading ? '…' : '🔍 Search'}
-        </button>
-      </div>
-    </div>
-  );
-
-  // Before any search
-  if (!searched && !loading) return <Wrap><SearchBar borderTop={false} /></Wrap>;
-
-  // Loading
   if (loading) return (
-    <Wrap>
+    <Wrap specialty={specialty}>
       <div style={{ padding: '20px', textAlign: 'center', color: MUTED, fontSize: 13 }}>
         <div style={{ fontSize: 20, marginBottom: 8 }}>⏳</div>
         Searching for top {specialty}s in <strong>{city}</strong>…
@@ -137,17 +124,15 @@ export default function TopDoctorsCard({ specialty, token, onBook }) {
     </Wrap>
   );
 
-  // Error
   if (error) return (
-    <Wrap>
+    <Wrap specialty={specialty}>
       <div style={{ padding: '14px', fontSize: 12.5, color: AMBER }}>⚠️ {error}</div>
-      <SearchBar borderTop={true} />
+      <SearchBar {...searchBarProps} borderTop={true} />
     </Wrap>
   );
 
-  // Results
   return (
-    <Wrap>
+    <Wrap specialty={specialty}>
       <div>
         {doctors.map((doc, i) => (
           <div key={doc.placeId || i} style={{ padding: '12px 14px', borderBottom: i < doctors.length - 1 ? `1px solid ${BORDER}` : 'none', display: 'flex', gap: 12 }}>
@@ -191,7 +176,7 @@ export default function TopDoctorsCard({ specialty, token, onBook }) {
             </div>
           </div>
         ))}
-        <SearchBar borderTop={true} />
+        <SearchBar {...searchBarProps} borderTop={true} />
       </div>
     </Wrap>
   );
