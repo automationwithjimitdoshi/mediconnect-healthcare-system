@@ -341,139 +341,114 @@ router.get('/doctor/patient/:patientId/actions', requireAuth, async(req,res)=>{
   }catch(err){return res.status(500).json({success:false,message:'Failed',detail:err.message});}
 });
 
-/**
- * POST /api/reports/share
- * Generates a shareable link for a report (72-hour expiry).
- */
+// ── SHARE SYSTEM ─────────────────────────────────────────────────────────────
+// Uses JWT to encode fileId + expiry — no extra DB table needed.
+// Token is signed with JWT_SECRET so it cannot be forged.
+
+// POST /api/reports/share
+// Receives: { reportId: medicalFile.id }
+// Returns:  { success, shareUrl, shareToken, expiresAt }
 router.post('/share', requireAuth, async (req, res) => {
   try {
     const { reportId } = req.body;
+    if (!reportId) return res.status(400).json({ success: false, message: 'reportId is required' });
 
-    if (!reportId) {
-      return res.status(400).json({ success: false, message: 'reportId is required' });
-    }
-
-    // Verify the report belongs to the requesting user
-    const report = await prisma.report.findFirst({
-      where: {
-        id: reportId,
-        OR: [
-          { patientId: req.user.id },
-          { doctorId:  req.user.id },
-        ],
-      },
+    const userId  = getUserId(req);
+    const file    = await prisma.medicalFile.findFirst({
+      where: { id: reportId },
+      include: { patient: { select: { firstName: true, lastName: true, userId: true } } },
     });
+    if (!file) return res.status(404).json({ success: false, message: 'Report not found' });
 
-    if (!report) {
-      return res.status(404).json({ success: false, message: 'Report not found' });
-    }
+    // Sign a JWT that encodes the fileId and expires in 72 hours
+    const shareToken = jwt.sign(
+      { fileId: file.id, sharedBy: userId },
+      process.env.JWT_SECRET,
+      { expiresIn: '72h' }
+    );
 
-    // Generate a secure random token
-    const crypto    = require('crypto');
-    const shareToken = crypto.randomBytes(32).toString('hex');
-    const expiresAt  = new Date(Date.now() + 72 * 60 * 60 * 1000); // 72 hours
+    const FRONTEND = process.env.FRONTEND_URL || 'https://mediconnect-healthcare-system.vercel.app';
+    const shareUrl = `${FRONTEND}/report/view/${shareToken}`;
+    const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000);
 
-    // Save share token to DB (add ShareToken model to your Prisma schema if not present)
-    await prisma.shareToken.create({
-      data: {
-        token:    shareToken,
-        reportId: report.id,
-        expiresAt,
-        createdBy: req.user.id,
-      },
-    });
-
-    const shareUrl = `${process.env.FRONTEND_URL}/report/view/${shareToken}`;
-
-    return res.json({
-      success:    true,
-      shareUrl,
-      shareToken,
-      expiresAt,
-    });
-
+    return res.json({ success: true, shareUrl, shareToken, expiresAt });
   } catch (err) {
-    console.error('[reports/share] error:', err.message);
-    return res.status(500).json({ success: false, message: 'Failed to generate share link', detail: err.message });
+    console.error('[reports/share]', err.message);
+    return res.status(500).json({ success: false, message: err.message });
   }
 });
 
-/**
- * GET /api/reports/shared/:shareToken/meta
- * Returns minimal report info for Open Graph preview (page.js uses this).
- * Does NOT require auth — WhatsApp bot calls this with no token.
- */
+// GET /api/reports/shared/:shareToken/meta
+// Public — no auth. Used by WhatsApp/OG preview bots.
 router.get('/shared/:shareToken/meta', async (req, res) => {
   try {
-    const record = await prisma.shareToken.findUnique({
-      where: { token: req.params.shareToken },
-      include: {
-        report: {
-          include: { patient: { select: { firstName: true, lastName: true } } },
-        },
-      },
+    const decoded = jwt.verify(req.params.shareToken, process.env.JWT_SECRET);
+    const file    = await prisma.medicalFile.findUnique({
+      where:   { id: decoded.fileId },
+      include: { patient: { select: { firstName: true, lastName: true } } },
     });
+    if (!file) return res.status(404).json({ success: false, message: 'Report not found' });
 
-    if (!record || record.expiresAt < new Date()) {
-      return res.status(404).json({ success: false, message: 'Link expired or not found' });
+    // Get report type from stored analysis
+    let reportType = 'Medical Report';
+    if (file.patientAnalysis) {
+      const a = typeof file.patientAnalysis === 'string' ? JSON.parse(file.patientAnalysis) : file.patientAnalysis;
+      if (a?.reportType) reportType = a.reportType;
     }
 
     return res.json({
-      reportType:  record.report.reportType || record.report.type || 'Medical Report',
-      patientName: record.report.patient
-        ? `${record.report.patient.firstName} ${record.report.patient.lastName}`.trim()
-        : null,
+      reportType,
+      patientName: file.patient ? `${file.patient.firstName || ''} ${file.patient.lastName || ''}`.trim() : null,
     });
   } catch (err) {
-    return res.status(500).json({ success: false, message: err.message });
+    // JWT expired or invalid
+    return res.status(404).json({ success: false, message: 'Link expired or invalid' });
   }
 });
 
-/**
- * GET /api/reports/shared/:shareToken
- * Returns full report data for authenticated users.
- */
+// GET /api/reports/shared/:shareToken
+// Requires login — returns full report data.
 router.get('/shared/:shareToken', requireAuth, async (req, res) => {
   try {
-    const record = await prisma.shareToken.findUnique({
-      where: { token: req.params.shareToken },
-      include: { report: true },
+    const decoded = jwt.verify(req.params.shareToken, process.env.JWT_SECRET);
+    const file    = await prisma.medicalFile.findUnique({
+      where:   { id: decoded.fileId },
+      include: { patient: { select: { firstName: true, lastName: true } } },
     });
+    if (!file) return res.status(404).json({ success: false, message: 'Report not found' });
 
-    if (!record || record.expiresAt < new Date()) {
-      return res.status(410).json({ success: false, message: 'This link has expired' });
+    // Build response in the shape ReportViewClient expects
+    let analysis = null;
+    if (file.patientAnalysis) {
+      analysis = typeof file.patientAnalysis === 'string' ? JSON.parse(file.patientAnalysis) : file.patientAnalysis;
     }
 
-    return res.json({ success: true, data: record.report });
-  } catch (err) {
-    return res.status(500).json({ success: false, message: err.message });
-  }
-});
+    const patientName = file.patient
+      ? `${file.patient.firstName || ''} ${file.patient.lastName || ''}`.trim()
+      : 'Patient';
 
-
-// GET /api/reports/patient/download/:fileId
-// No auth — streams file directly from disk using storageKey saved at upload time
-router.get('/patient/download/:fileId', async (req, res) => {
-  const nodeFs   = require('fs');
-  const nodePath = require('path');
-  try {
-    const file = await prisma.medicalFile.findUnique({ where: { id: req.params.fileId } });
-    if (!file) return res.status(404).json({ error: 'File not found' });
-    const candidates = [
-      file.storageKey,
-      file.filePath,
-      file.storageUrl ? nodePath.join(__dirname, '..', '..', file.storageUrl.replace(/^\//, '')) : null,
-      file.storageUrl ? nodePath.join(__dirname, '..', file.storageUrl.replace(/^\//, ''))       : null,
-    ].filter(Boolean);
-    const diskPath = candidates.find(p => { try { return nodeFs.existsSync(p); } catch { return false; } });
-    if (!diskPath) return res.status(404).json({ error: 'File not on disk' });
-    const fileName = file.fileName || nodePath.basename(diskPath);
-    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fileName)}"`);
-    res.setHeader('Content-Type', file.mimeType || file.fileType || 'application/octet-stream');
-    res.setHeader('Content-Length', nodeFs.statSync(diskPath).size);
-    nodeFs.createReadStream(diskPath).pipe(res);
+    return res.json({
+      success: true,
+      data: {
+        id:           file.id,
+        reportType:   analysis?.reportType || 'Medical Report',
+        patientName,
+        healthScore:  analysis?.healthScore  || null,
+        scoreLabel:   analysis?.scoreLabel   || '',
+        parameters:   analysis?.parameters   || [],
+        findings:     analysis?.findings     || [],
+        suggestions:  analysis?.suggestions  || [],
+        doctors:      analysis?.doctors      || [],
+        disclaimer:   analysis?.disclaimer   || '',
+        fileName:     file.fileName,
+        createdAt:    file.createdAt,
+      },
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    if (err.name === 'TokenExpiredError') {
+      return res.status(410).json({ success: false, message: 'This share link has expired' });
+    }
+    return res.status(400).json({ success: false, message: 'Invalid share link' });
   }
 });
 
