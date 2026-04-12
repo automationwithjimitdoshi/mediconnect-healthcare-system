@@ -79,7 +79,7 @@ export default function TopDoctorsCard({ specialty, token, onBook }) {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function doSearch(cityOverride) {
-    const c = (cityOverride !== undefined ? cityOverride : city).trim();
+    const c = (typeof cityOverride === 'string' ? cityOverride : city).trim();
     if (!c) { inputRef.current?.focus(); return; }
     setLoading(true);
     setError('');
